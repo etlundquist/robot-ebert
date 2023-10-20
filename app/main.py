@@ -15,7 +15,8 @@ from dotenv import load_dotenv
 from typing import List, Dict
 from sklearn.metrics.pairwise import cosine_similarity
 
-from utils import Movie, embed_query, get_movies
+from model import Movie, MovieScore
+from utils import embed_query, get_movies
 
 
 app = FastAPI()
@@ -42,26 +43,30 @@ def root():
 
 
 @app.get("/user_movies", status_code=200)
-def get_user_movies(user_id: str, k: int = 10) -> List[Movie]:
+def get_user_movies(user_id: str, k: int = 10) -> List[MovieScore]:
     """get recommended movies using collaborative filtering embedding similarity"""
 
-    user_matches = cf_index.query(id=user_id, top_k=k, namespace="movies", include_values=False, include_metadata=True)["matches"]
+    user_matches = cf_index.query(id=user_id, top_k=k, namespace="movies")["matches"]
     user_movies = get_movies(ct_index, ids=[match["id"] for match in user_matches])
-    return user_movies
+    user_scores = [match["score"] for match in user_matches]
+    user_movie_scores = [MovieScore(movie=movie, score=score) for movie, score in zip(user_movies, user_scores)]
+    return user_movie_scores
 
 
 @app.get("/query_movies", status_code=200)
-def get_query_movies(query: str, k: int = 10) -> List[Movie]:
+def get_query_movies(query: str, k: int = 10) -> List[MovieScore]:
     """get recommended movies using semantic search embedding similarity"""
 
     query_embedding = embed_query(query)
-    query_matches = ct_index.query(vector=query_embedding, top_k=k, include_values=False, include_metadata=True)["matches"]
+    query_matches = ct_index.query(vector=query_embedding, top_k=k)["matches"]
     query_movies = get_movies(ct_index, ids=[match["id"] for match in query_matches])
-    return query_movies
+    query_scores = [match["score"] for match in query_matches]
+    query_movie_scores = [MovieScore(movie=movie, score=score) for movie, score in zip(query_movies, query_scores)]
+    return query_movie_scores
 
 
 @app.get("/user_query_movies", status_code=200)
-def get_user_query_movies(user_id: str, query: str, k: int = 10) -> List[Movie]:
+def get_user_query_movies(user_id: str, query: str, k: int = 10) -> List[MovieScore]:
     """get recommended movies using semantic search and collaborative filtering embedding similarity"""
 
     # fetch query-movie similarity scores for the top query matches
@@ -88,8 +93,12 @@ def get_user_query_movies(user_id: str, query: str, k: int = 10) -> List[Movie]:
 
     # fetch metadata for the combined score movies
     combined_movies = get_movies(ct_index, ids=combined_movie_scores.index.values.tolist())
-    return combined_movies
+    combined_scores = combined_movie_scores.values.tolist()
+    combined_movie_scores = [MovieScore(movie=movie, score=score) for movie, score in zip(combined_movies, combined_scores)]
+    return combined_movie_scores
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="127.0.0.1", port=8080, reload=True)
+    host = "0.0.0.0"
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run("main:app", host=host, port=port, reload=False)
