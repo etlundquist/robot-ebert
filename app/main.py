@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 from typing import List, Dict
 from sklearn.metrics.pairwise import cosine_similarity
 
-from model import Movie, MovieScore
+from models import Movie, MovieScore
 from utils import embed_query, get_movies
 
 

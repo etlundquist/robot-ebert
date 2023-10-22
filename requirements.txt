@@ -9,3 +9,4 @@ pinecone-client
 openai
 duckdb
 duckdb-engine
+cloud-sql-python-connector[pg8000]

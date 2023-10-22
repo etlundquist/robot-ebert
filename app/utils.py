@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List, Dict
 from pydantic import BaseModel
 
-from model import Movie, MovieScore
+from models import Movie, MovieScore
 
 
 def embed_query(query: str) -> List[float]:

@@ -61,3 +61,12 @@ docker push ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:
 ```bash
 gcloud run deploy ${SERVICE_NAME} --image ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:latest --platform managed --region $LOCATION
 ```
+
+## Create and Connect to the Application Database in GCP CloudSQL
+
+### Apply the SQLAlchemy Table Models to the Database
+
+```bash
+gcloud auth application-default login
+cd app && python database.py && cd -
+```
