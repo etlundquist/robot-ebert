@@ -28,8 +28,8 @@ load_dotenv(env_path)
 pinecone.init(api_key=os.environ["PINECONE_API_KEY"], environment=os.environ["PINECONE_ENVIRONMENT"])
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
-cf_index = pinecone.Index("cf-embed")
-ct_index = pinecone.Index("ct-embed")
+collaborative_index = pinecone.Index("collaborative-embeddings")
+content_index = pinecone.Index("content-embeddings")
 
 QUERY_SCORE_WEIGHT = 0.5
 
@@ -46,8 +46,11 @@ def root():
 def get_user_movies(user_id: str, k: int = 10) -> List[MovieScore]:
     """get recommended movies using collaborative filtering embedding similarity"""
 
-    user_matches = cf_index.query(id=user_id, top_k=k, namespace="movies")["matches"]
-    user_movies = get_movies(ct_index, ids=[match["id"] for match in user_matches])
+    user_cf_response = collaborative_index.fetch(ids=[user_id], namespace="users")
+    user_cf_embedding = user_cf_response["vectors"][user_id]["values"]
+    user_matches = collaborative_index.query(vector=user_cf_embedding, top_k=k, namespace="movies")["matches"]
+
+    user_movies = get_movies(content_index, ids=[match["id"] for match in user_matches])
     user_scores = [match["score"] for match in user_matches]
     user_movie_scores = [MovieScore(movie=movie, score=score) for movie, score in zip(user_movies, user_scores)]
     return user_movie_scores
@@ -58,8 +61,9 @@ def get_query_movies(query: str, k: int = 10) -> List[MovieScore]:
     """get recommended movies using semantic search embedding similarity"""
 
     query_embedding = embed_query(query)
-    query_matches = ct_index.query(vector=query_embedding, top_k=k)["matches"]
-    query_movies = get_movies(ct_index, ids=[match["id"] for match in query_matches])
+    query_matches = content_index.query(vector=query_embedding, top_k=k)["matches"]
+
+    query_movies = get_movies(content_index, ids=[match["id"] for match in query_matches])
     query_scores = [match["score"] for match in query_matches]
     query_movie_scores = [MovieScore(movie=movie, score=score) for movie, score in zip(query_movies, query_scores)]
     return query_movie_scores
@@ -71,15 +75,15 @@ def get_user_query_movies(user_id: str, query: str, k: int = 10) -> List[MovieSc
 
     # fetch query-movie similarity scores for the top query matches
     query_embedding = embed_query(query)
-    query_matches = ct_index.query(vector=query_embedding, top_k=k)["matches"]
+    query_matches = content_index.query(vector=query_embedding, top_k=k)["matches"]
 
     # fetch the user's collaborative filtering embedding vector
-    user_cf_response = cf_index.fetch(ids=[user_id], namespace="users")
+    user_cf_response = collaborative_index.fetch(ids=[user_id], namespace="users")
     user_cf_embedding = user_cf_response["vectors"][user_id]["values"]
 
     # fetch the query match movies' collaborative filtering embedding vectors
     query_movie_ids = [match["id"] for match in query_matches]
-    movie_cf_vectors = cf_index.fetch(ids=query_movie_ids, namespace="movies")["vectors"]
+    movie_cf_vectors = collaborative_index.fetch(ids=query_movie_ids, namespace="movies")["vectors"]
     movie_cf_vectors = sorted([(val["id"], val["values"]) for val in movie_cf_vectors.values()], key=lambda x: x[0])
     movie_cf_ids, movie_cf_embeddings = map(list, zip(*movie_cf_vectors))
 
@@ -92,7 +96,7 @@ def get_user_query_movies(user_id: str, query: str, k: int = 10) -> List[MovieSc
     combined_movie_scores = (QUERY_SCORE_WEIGHT * query_movie_scores + (1 - QUERY_SCORE_WEIGHT) * user_movie_scores).sort_values(ascending=False)
 
     # fetch metadata for the combined score movies
-    combined_movies = get_movies(ct_index, ids=combined_movie_scores.index.values.tolist())
+    combined_movies = get_movies(content_index, ids=combined_movie_scores.index.values.tolist())
     combined_scores = combined_movie_scores.values.tolist()
     combined_movie_scores = [MovieScore(movie=movie, score=score) for movie, score in zip(combined_movies, combined_scores)]
     return combined_movie_scores

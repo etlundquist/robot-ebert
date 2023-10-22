@@ -7,3 +7,5 @@ fastapi
 python-dotenv
 pinecone-client
 openai
+duckdb
+duckdb-engine
