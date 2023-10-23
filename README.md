@@ -5,18 +5,17 @@ A conversational movie recommender
 ## Run the FastAPI App Locally
 
 ```bash
-cd app
-python main.py
+PYTHONPATH=$PWD python app/main.py
 ```
 
-## Build and Run the FastAPI App via Docker Desktop
+## Run the FastAPI App via Docker Desktop
 
 ```bash
 docker build -t robot-ebert-fastapi .
 docker run -p 8080:8080 --env-file .env robot-ebert-fastapi
 ```
 
-## Build, Push, and Run the FastAPI App via GCP Artifact Registry and GCP Cloud Run
+## Build and Deploy the FastAPI App via GCP Artifact Registry and GCP Cloud Run
 
 ### Set Environment Variables
 
@@ -64,9 +63,18 @@ gcloud run deploy ${SERVICE_NAME} --image ${LOCATION}-docker.pkg.dev/${PROJECT_I
 
 ## Create and Connect to the Application Database in GCP CloudSQL
 
-### Apply the SQLAlchemy Table Models to the Database
+### Apply the SQLAlchemy Tables DDL to the Database
 
 ```bash
 gcloud auth application-default login
 cd app && python database.py && cd -
 ```
+
+### Connect to the Database Locally using pgAdmin
+
+* Whitelist Your Client IP: CloudSQL > Instances > `${INSTANCE_NAME}` > Networking > Add a Network > `${CLIENT_PUBLIC_IP}`
+* Add a New Server in pgAdmin: Servers > Register > Server:
+    * Host: `${SERVER_PUBLIC_IP}`
+    * User: `postgres`
+    * Pass: `POSTGRES_PASSWORD` (GCP Secrets Manager)
+    * Port: 5432

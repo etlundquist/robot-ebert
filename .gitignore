@@ -16,6 +16,7 @@ MANIFEST
 
 # local data files
 data/
+*.duckdb
 
 # sphinx documentation
 docs/_build/

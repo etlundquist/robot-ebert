@@ -1,5 +1,4 @@
 FROM python:3.9-slim
-WORKDIR /app
 EXPOSE 8080
 
 RUN apt-get update \
@@ -7,8 +6,8 @@ RUN apt-get update \
     && apt-get clean \
     && update-ca-certificates
 
-COPY ./requirements.txt requirements.txt
-RUN pip install -r requirements.txt
+COPY ./requirements.txt /app/requirements.txt
+RUN pip install -r /app/requirements.txt
 
-COPY app/ .
-ENTRYPOINT ["python", "main.py"]
+COPY app/ /app/
+ENTRYPOINT ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

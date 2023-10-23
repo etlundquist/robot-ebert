@@ -5,8 +5,9 @@ pydantic
 uvicorn
 fastapi
 python-dotenv
-pinecone-client
 openai
+pinecone-client
+sqlalchemy
+cloud-sql-python-connector[pg8000]
 duckdb
 duckdb-engine
-cloud-sql-python-connector[pg8000]

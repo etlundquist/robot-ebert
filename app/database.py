@@ -6,12 +6,8 @@ from dotenv import load_dotenv
 from pg8000 import Connection
 
 
-# load secrets via environment variables
-env_path = "../.env"
-load_dotenv(env_path)
+load_dotenv()
 
-# utility functions for working with database connections
-# -------------------------------------------------------
 
 def make_connection() -> Connection:
     """generate a new pg8000 connection"""
@@ -39,9 +35,6 @@ def get_engine(echo: bool = False) -> Engine:
     engine = create_engine("postgresql+pg8000://", creator=make_connection, echo=echo)
     return engine
 
-
-# SQLAlchemy Table models for database tables
-# -------------------------------------------
 
 metadata = MetaData()
 
