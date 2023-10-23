@@ -8,6 +8,6 @@ python-dotenv
 openai
 pinecone-client
 sqlalchemy
-cloud-sql-python-connector[pg8000]
 duckdb
 duckdb-engine
+cloud-sql-python-connector[pg8000]

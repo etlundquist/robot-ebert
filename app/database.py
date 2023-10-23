@@ -1,4 +1,6 @@
 import os
+
+from argparse import ArgumentParser
 from sqlalchemy import MetaData, Table, Column, PrimaryKeyConstraint, Engine, create_engine
 from sqlalchemy.types import ARRAY, Date, DateTime, Double, Integer, Text
 from google.cloud.sql.connector import Connector
@@ -10,7 +12,7 @@ load_dotenv()
 
 
 def make_connection() -> Connection:
-    """generate a new pg8000 connection"""
+    """generate a new pg8000 connection for a CloudSQL instance"""
 
     project = "robot-ebert"
     region = "us-west1"
@@ -28,11 +30,13 @@ def make_connection() -> Connection:
     return cnx
 
 
-def get_engine(echo: bool = False) -> Engine:
+def get_engine(test: bool = False, echo: bool = False) -> Engine:
     """get a new SQLAlchemy Engine to manage DB connections"""
 
-    # engine = create_engine(f"duckdb:///database.duckdb", echo=echo)
-    engine = create_engine("postgresql+pg8000://", creator=make_connection, echo=echo)
+    if test:
+        engine = create_engine(f"duckdb:///database.duckdb", echo=echo)
+    else:
+        engine = create_engine("postgresql+pg8000://", creator=make_connection, echo=echo)
     return engine
 
 
@@ -78,5 +82,11 @@ ratings = Table(
 
 
 if __name__ == "__main__":
-    engine = get_engine(echo=True)
+
+    parser = ArgumentParser()
+    parser.add_argument("--test", type=bool, default=False)
+    parser.add_argument("--echo", type=bool, default=True)
+
+    args = parser.parse_args()
+    engine = get_engine(test=args.test, echo=args.echo)
     metadata.create_all(engine)
