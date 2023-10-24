@@ -42,6 +42,9 @@ def get_movie(tmdb_id: str) -> Movie:
 def update_movie(tmdb_id: str, movie: Movie) -> None:
     """update an existing movie by ID"""
 
+    movie_data = movie.model_dump()
+    del movie_data["tmdb_id"]
+
     with ENGINE.begin() as cnx:
         statement = update(
             database.movies
@@ -49,7 +52,7 @@ def update_movie(tmdb_id: str, movie: Movie) -> None:
             database.movies.c.tmdb_id == tmdb_id
         ).values(
             updated_at=datetime.now(),
-            **movie.model_dump()
+            **movie_data
         )
         cnx.execute(statement)
 

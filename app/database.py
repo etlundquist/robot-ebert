@@ -30,13 +30,17 @@ def make_connection() -> Connection:
     return cnx
 
 
-def get_engine(test: bool = False, echo: bool = False) -> Engine:
-    """get a new SQLAlchemy Engine to manage DB connections"""
+def get_prod_engine(echo: bool = False) -> Engine:
+    """get a new SQLAlchemy Engine to manage DB connections to the application CloudSQL database"""
 
-    if test:
-        engine = create_engine(f"duckdb:///database.duckdb", echo=echo)
-    else:
-        engine = create_engine("postgresql+pg8000://", creator=make_connection, echo=echo)
+    engine = create_engine("postgresql+pg8000://", creator=make_connection, echo=echo)
+    return engine
+
+
+def get_test_engine(echo: bool = False) -> Engine:
+    """get a new SQLAlchemy Engine to manage DB connections to a local test DuckDB database"""
+
+    engine = create_engine("duckdb:///database.duckdb", echo=echo)
     return engine
 
 
@@ -86,7 +90,11 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--test", type=bool, default=False)
     parser.add_argument("--echo", type=bool, default=True)
-
     args = parser.parse_args()
-    engine = get_engine(test=args.test, echo=args.echo)
+
+    if args.test:
+        engine = get_test_engine(echo=args.echo)
+    else:
+        engine = get_prod_engine(echo=args.echo)
+
     metadata.create_all(engine)

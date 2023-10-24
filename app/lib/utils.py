@@ -1,6 +1,4 @@
 import os
-import sys
-import json
 import openai
 
 import numpy as np

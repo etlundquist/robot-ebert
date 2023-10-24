@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Dict
+from typing import List, Optional
 from pydantic import BaseModel
 
 
@@ -19,8 +19,8 @@ class Movie(BaseModel):
     title: str
     release_date: datetime
     runtime: float
-    genres: List[str]
-    keywords: List[str]
+    genres: Optional[List[str]]
+    keywords: Optional[List[str]]
     overview: str
     budget: int
     revenue: int
