@@ -19,7 +19,7 @@ def client():
 def test_engine():
     """fixture to create a SQLAlchemy engine backed by a local DuckDB database"""
 
-    test_engine = get_test_engine(echo=False)
+    test_engine = get_test_engine(echo=True)
     metadata.create_all(test_engine)
     return test_engine
 

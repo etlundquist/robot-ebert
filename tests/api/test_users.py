@@ -3,7 +3,7 @@ from sqlalchemy import select
 from uuid import UUID
 
 from app import database
-from app.models import User, UserRequest
+from app.models import DBUser, NewUserRequest, UpdateUserRequest
 
 
 @pytest.fixture(autouse=True)
@@ -16,7 +16,7 @@ def patch_constant(monkeypatch, test_engine):
 def test_create_user(client):
     """unit test: create_user()"""
 
-    user_request = UserRequest(fname="test", lname="test", email="test@test.com")
+    user_request = NewUserRequest(email="test@test.com", password="testpassword", fname="test", lname="test")
     response = client.post("/users/", json=user_request.model_dump())
 
     try:
@@ -37,8 +37,8 @@ def test_get_user(client, test_engine):
         user_id = cnx.execute(statement).one()._asdict()['user_id']
 
     response = client.get(f"/users/{user_id}/")
-    expected = User(user_id=user_id, fname="test", lname="test", email="test@test.com")
-    result = User(**response.json())
+    expected = {"email": "test@test.com", "fname": "test", "lname": "test"}
+    result = {key: val for key, val in response.json().items() if key in ["email", "fname", "lname"]}
 
     assert response.status_code == 200
     assert expected == result
@@ -51,7 +51,7 @@ def test_update_user(client, test_engine):
         statement = select(database.users).limit(1)
         user_id = cnx.execute(statement).one()._asdict()['user_id']
 
-    user_request = UserRequest(fname="test2", lname="test2", email="test2@test2.com")
+    user_request = UpdateUserRequest(email="test2@test2.com", fname="test2", lname="test2")
     response = client.put(f"/users/{user_id}/", json=user_request.model_dump())
     assert response.status_code == 200
 

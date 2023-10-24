@@ -2,7 +2,7 @@ import os
 
 from argparse import ArgumentParser
 from sqlalchemy import MetaData, Table, Column, PrimaryKeyConstraint, Engine, create_engine
-from sqlalchemy.types import ARRAY, Date, DateTime, Double, Integer, Text
+from sqlalchemy.types import ARRAY, BIGINT, Date, DateTime, Double, Integer, Text
 from google.cloud.sql.connector import Connector
 from dotenv import load_dotenv
 from pg8000 import Connection
@@ -50,9 +50,10 @@ users = Table(
     "users",
     metadata,
     Column("user_id", Text, primary_key=True),
+    Column("email", Text),
+    Column("hashed_password", Text),
     Column("fname", Text),
     Column("lname", Text),
-    Column("email", Text),
     Column("updated_at", DateTime)
 )
 
@@ -60,14 +61,18 @@ movies = Table(
     "movies",
     metadata,
     Column("tmdb_id", Text, primary_key=True),
+    Column("tmdb_homepage", Text),
     Column("title", Text),
+    Column("language", Text),
     Column("release_date", Date),
-    Column("runtime", Double),
+    Column("runtime", Integer),
+    Column("director", Text),
+    Column("actors", ARRAY(Text)),
     Column("genres", ARRAY(Text)),
     Column("keywords", ARRAY(Text)),
     Column("overview", Text),
-    Column("budget", Integer),
-    Column("revenue", Integer),
+    Column("budget", BIGINT),
+    Column("revenue", BIGINT),
     Column("popularity", Double),
     Column("vote_average", Double),
     Column("vote_count", Integer),

@@ -19,10 +19,14 @@ def movie():
     """sample movie for testing"""
 
     movie = Movie(
-        tmdb_id="test",
+        tmdb_id="1",
+        tmdb_homepage="https://www.themoviedb.org/movie/1",
         title="test title",
+        language="en",
         release_date=datetime(2000, 1, 1),
-        runtime=90.0,
+        runtime=90,
+        director="test director",
+        actors=["test actor 1", "test actor 2"],
         genres=["test genre 1", "test genre 2"],
         keywords=["test keyword 1", "test keyword 2"],
         overview="test overview",

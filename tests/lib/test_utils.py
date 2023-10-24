@@ -21,13 +21,17 @@ def movies(test_engine):
 
     movies = [
         Movie(
-            tmdb_id="test 1",
+            tmdb_id="1",
+            tmdb_homepage="https://www.themoviedb.org/movie/1",
             title="test title 1",
+            language="en",
             release_date=datetime(2000, 1, 1),
-            runtime=90.0,
+            runtime=90,
+            director="test director",
+            actors=["test actor 1", "test actor 2"],
             genres=["test genre 1", "test genre 2"],
             keywords=["test keyword 1", "test keyword 2"],
-            overview="test overview 1",
+            overview="test overview",
             budget=100,
             revenue=100,
             popularity=10.0,
@@ -35,18 +39,22 @@ def movies(test_engine):
             vote_count=100
         ),
         Movie(
-            tmdb_id="test 2",
+            tmdb_id="2",
+            tmdb_homepage="https://www.themoviedb.org/movie/2",
             title="test title 2",
+            language="en",
             release_date=datetime(2000, 1, 1),
-            runtime=90.0,
+            runtime=90,
+            director="test director",
+            actors=["test actor 1", "test actor 2"],
             genres=["test genre 1", "test genre 2"],
             keywords=["test keyword 1", "test keyword 2"],
-            overview="test overview 2",
-            budget=200,
-            revenue=200,
-            popularity=20.0,
-            vote_average=1.0,
-            vote_count=200
+            overview="test overview",
+            budget=100,
+            revenue=100,
+            popularity=10.0,
+            vote_average=5.0,
+            vote_count=100
         )
     ]
 
