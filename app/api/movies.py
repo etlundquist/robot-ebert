@@ -4,7 +4,7 @@ from sqlalchemy import insert, select, update, delete
 
 from app import database
 from app.models import Movie
-from app.constants import ENGINE
+from app.constants import engine
 
 router = APIRouter()
 
@@ -13,7 +13,7 @@ router = APIRouter()
 def create_movie(movie: Movie) -> str:
     """create a new movie"""
 
-    with ENGINE.begin() as cnx:
+    with engine.begin() as cnx:
         statement = insert(
             database.movies
         ).values(
@@ -28,7 +28,7 @@ def create_movie(movie: Movie) -> str:
 def get_movie(tmdb_id: str) -> Movie:
     """get an existing movie by ID"""
 
-    with ENGINE.begin() as cnx:
+    with engine.begin() as cnx:
         statement = select(
             database.movies
         ).where(
@@ -45,7 +45,7 @@ def update_movie(tmdb_id: str, movie: Movie) -> None:
     movie_data = movie.model_dump()
     del movie_data["tmdb_id"]
 
-    with ENGINE.begin() as cnx:
+    with engine.begin() as cnx:
         statement = update(
             database.movies
         ).where(
@@ -61,7 +61,7 @@ def update_movie(tmdb_id: str, movie: Movie) -> None:
 def delete_movie(tmdb_id: str) -> None:
     """delete an existing movie by ID"""
 
-    with ENGINE.begin() as cnx:
+    with engine.begin() as cnx:
         statement = delete(
             database.movies
         ).where(

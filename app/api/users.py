@@ -1,23 +1,26 @@
 
 from uuid import uuid4
 from datetime import datetime
+from typing import List
 from fastapi import APIRouter
 from sqlalchemy import insert, select, update, delete
+from sqlalchemy.exc import DatabaseError
 from passlib.context import CryptContext
 
 from app import database
-from app.models import NewUserRequest, UpdateUserRequest, DBUser
-from app.constants import ENGINE
+from app.models import AddUserRequest, UpdateUserRequest, User, UserRating, AddRatingsResponse, Recommendation
+from app.lib.utils import get_user_recs
+from app.constants import engine, collaborative_index
 
 router = APIRouter()
 password_context = CryptContext(schemes=["bcrypt"])
 
 
 @router.post("/users/", status_code=200)
-def create_user(user_request: NewUserRequest) -> str:
+def create_user(user_request: AddUserRequest) -> str:
     """create a new user"""
 
-    with ENGINE.begin() as cnx:
+    with engine.begin() as cnx:
 
         # check to make sure there's not already an existing user with the same email
         statement = select(database.users).where(database.users.c.email == user_request.email)
@@ -46,16 +49,16 @@ def create_user(user_request: NewUserRequest) -> str:
 
 
 @router.get("/users/{user_id}/", status_code=200)
-def get_user(user_id: str) -> DBUser:
+def get_user(user_id: str) -> User:
     """get an existing user by ID"""
 
-    with ENGINE.begin() as cnx:
+    with engine.begin() as cnx:
         statement = select(
             database.users
         ).where(
             database.users.c.user_id == user_id
         )
-        user = DBUser(**cnx.execute(statement).one()._asdict())
+        user = User(**cnx.execute(statement).one()._asdict())
         return user
 
 
@@ -63,7 +66,7 @@ def get_user(user_id: str) -> DBUser:
 def update_user(user_id: str, user_request: UpdateUserRequest) -> None:
     """update an existing user by ID"""
 
-    with ENGINE.begin() as cnx:
+    with engine.begin() as cnx:
         statement = update(
             database.users
         ).where(
@@ -79,10 +82,67 @@ def update_user(user_id: str, user_request: UpdateUserRequest) -> None:
 def delete_user(user_id: str) -> None:
     """delete an existing user by ID"""
 
-    with ENGINE.begin() as cnx:
+    with engine.begin() as cnx:
         statement = delete(
             database.users
         ).where(
             database.users.c.user_id == user_id
         )
         cnx.execute(statement)
+
+
+@router.get("/users/{user_id}/ratings/", status_code=200)
+def get_user_ratings(user_id: str) -> List[UserRating]:
+    """get ratings for an existing user by ID"""
+
+    with engine.begin() as cnx:
+        statement = select(
+            database.ratings
+        ).where(
+            database.ratings.c.user_id == user_id
+        )
+
+        user_ratings = [UserRating(**row._asdict()) for row in cnx.execute(statement).all()]
+        return user_ratings
+
+
+@router.post("/users/{user_id}/ratings/", status_code=200)
+def add_user_ratings(user_id: str, user_ratings: List[UserRating]) -> AddRatingsResponse:
+    """add ratings for an existing user by ID"""
+
+    cnt_added, cnt_updated = 0, 0
+    updated_at = datetime.now()
+
+    for user_rating in user_ratings:
+        try:
+            with engine.begin() as cnx:
+                statement = insert(database.ratings).values(
+                    user_id=user_id,
+                    tmdb_id=user_rating.tmdb_id,
+                    rating=user_rating.rating,
+                    updated_at=updated_at,
+                )
+                result = cnx.execute(statement)
+                cnt_added += result.rowcount
+        except DatabaseError:
+            with engine.begin() as cnx:
+                statement = update(database.ratings).where(
+                    database.ratings.c.user_id == user_id,
+                    database.ratings.c.tmdb_id == user_rating.tmdb_id
+                ).values(
+                    rating=user_rating.rating,
+                    updated_at=updated_at,
+                )
+                result = cnx.execute(statement)
+                cnt_updated += result.rowcount
+
+    response = AddRatingsResponse(cnt_added=cnt_added, cnt_updated=cnt_updated)
+    return response
+
+
+@router.get("/users/{user_id}/recommendations/", status_code=200)
+def get_user_recommendations(user_id: str, k: int = 10) -> List[Recommendation]:
+    """get unconditional movie recommendations for an existing user by ID"""
+
+    user_recommendations = get_user_recs(collaborative_index, user_id, k)
+    return user_recommendations

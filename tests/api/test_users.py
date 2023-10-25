@@ -3,20 +3,20 @@ from sqlalchemy import select
 from uuid import UUID
 
 from app import database
-from app.models import DBUser, NewUserRequest, UpdateUserRequest
+from app.models import AddUserRequest, UpdateUserRequest
 
 
 @pytest.fixture(autouse=True)
 def patch_constant(monkeypatch, test_engine):
     """mock the CloudSQL SQLAlchemy Engine with a local DuckDB Engine for testing"""
 
-    monkeypatch.setattr("app.api.users.ENGINE", test_engine)
+    monkeypatch.setattr("app.api.users.engine", test_engine)
 
 
 def test_create_user(client):
     """unit test: create_user()"""
 
-    user_request = NewUserRequest(email="test@test.com", password="testpassword", fname="test", lname="test")
+    user_request = AddUserRequest(email="test@test.com", password="testpassword", fname="test", lname="test")
     response = client.post("/users/", json=user_request.model_dump())
 
     try:

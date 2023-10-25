@@ -1,21 +1,10 @@
-import os
-import openai
-import pinecone
-
 from fastapi import APIRouter
 from typing import List, Optional
-from dotenv import load_dotenv
 
 from app.models import Recommendation
 from app.lib.utils import get_user_recs, get_query_recs, get_user_query_recs
+from app.constants import collaborative_index, content_index
 
-
-load_dotenv()
-pinecone.init(api_key=os.environ["PINECONE_API_KEY"], environment=os.environ["PINECONE_ENVIRONMENT"])
-openai.api_key = os.environ["OPENAI_API_KEY"]
-
-collaborative_index = pinecone.Index("collaborative-embeddings")
-content_index = pinecone.Index("content-embeddings")
 
 router = APIRouter()
 

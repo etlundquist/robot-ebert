@@ -11,7 +11,7 @@ from app.models import Movie
 def patch_constant(monkeypatch, test_engine):
     """mock the CloudSQL SQLAlchemy Engine with a local DuckDB Engine for testing"""
 
-    monkeypatch.setattr("app.api.movies.ENGINE", test_engine)
+    monkeypatch.setattr("app.api.movies.engine", test_engine)
 
 
 @pytest.fixture(scope="module")

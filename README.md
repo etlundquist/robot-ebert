@@ -5,7 +5,7 @@ A conversational movie recommender
 ## Run the FastAPI App Locally
 
 ```bash
-PYTHONPATH=$PWD python app/main.py
+PYTHONPATH=$PWD RELOAD=true python app/main.py
 ```
 
 ## Run the FastAPI App via Docker Desktop

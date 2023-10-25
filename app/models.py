@@ -3,7 +3,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 
-class NewUserRequest(BaseModel):
+class AddUserRequest(BaseModel):
     email: str
     password: str
     fname: str
@@ -14,7 +14,7 @@ class UpdateUserRequest(BaseModel):
     fname: str
     lname: str
 
-class DBUser(BaseModel):
+class User(BaseModel):
     user_id: str
     email: str
     hashed_password: str
@@ -42,10 +42,19 @@ class Movie(BaseModel):
     vote_count: int
 
 
+class UserRating(BaseModel):
+    tmdb_id: str
+    rating: float
+
 class Rating(BaseModel):
     user_id: str
     tmdb_id: str
     rating: float
+
+class AddRatingsResponse(BaseModel):
+    cnt_added: int
+    cnt_updated: int
+
 
 class Recommendation(BaseModel):
     movie: Movie

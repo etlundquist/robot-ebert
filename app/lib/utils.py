@@ -12,7 +12,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from app import database
 from app.models import Movie, Recommendation
-from app.constants import ENGINE, QUERY_SCORE_WEIGHT
+from app.constants import engine, QUERY_SCORE_WEIGHT
 
 
 load_dotenv()
@@ -30,7 +30,7 @@ def embed_query(query: str) -> List[float]:
 def get_movies(ids: List[str]) -> List[Movie]:
     """get a list of movies by ID"""
 
-    with ENGINE.begin() as cnx:
+    with engine.begin() as cnx:
         statement = select(
             database.movies
         ).where(
