@@ -15,6 +15,13 @@ docker build -t robot-ebert-fastapi .
 docker run -p 8080:8080 --env-file .env robot-ebert-fastapi
 ```
 
+## Inspect the Online API Documentation
+
+```bash
+GET http://127.0.0.1:8080/docs
+GET http://127.0.0.1:8080/redoc
+```
+
 ## Build and Deploy the FastAPI App via GCP Artifact Registry and GCP Cloud Run
 
 ### Set Environment Variables
