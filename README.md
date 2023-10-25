@@ -2,7 +2,7 @@
 
 A conversational movie recommender
 
-## Run the FastAPI App Locally
+## Run the FastAPI App Locally (Re-Load on Save)
 
 ```bash
 PYTHONPATH=$PWD RELOAD=true python app/main.py

@@ -9,7 +9,7 @@ from app.constants import engine
 router = APIRouter()
 
 
-@router.post("/movies/", status_code=200)
+@router.post("/movies/")
 def create_movie(movie: Movie) -> str:
     """create a new movie"""
 
@@ -24,7 +24,7 @@ def create_movie(movie: Movie) -> str:
         return movie.tmdb_id
 
 
-@router.get("/movies/{tmdb_id}/", status_code=200)
+@router.get("/movies/{tmdb_id}/")
 def get_movie(tmdb_id: str) -> Movie:
     """get an existing movie by ID"""
 
@@ -38,7 +38,7 @@ def get_movie(tmdb_id: str) -> Movie:
         return movie
 
 
-@router.put("/movies/{tmdb_id}/", status_code=200)
+@router.put("/movies/{tmdb_id}/")
 def update_movie(tmdb_id: str, movie: Movie) -> None:
     """update an existing movie by ID"""
 
@@ -57,7 +57,7 @@ def update_movie(tmdb_id: str, movie: Movie) -> None:
         cnx.execute(statement)
 
 
-@router.delete("/movies/{tmdb_id}/", status_code=200)
+@router.delete("/movies/{tmdb_id}/")
 def delete_movie(tmdb_id: str) -> None:
     """delete an existing movie by ID"""
 

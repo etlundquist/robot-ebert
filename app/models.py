@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AddUserRequest(BaseModel):
@@ -54,6 +54,12 @@ class Rating(BaseModel):
 class AddRatingsResponse(BaseModel):
     cnt_added: int
     cnt_updated: int
+
+
+class SearchRequest(BaseModel):
+    query: str = Field(..., max_length=500)
+    user_id: Optional[str] = None
+    k: int = 10
 
 
 class Recommendation(BaseModel):

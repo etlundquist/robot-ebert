@@ -68,5 +68,5 @@ def movies(test_engine):
 def test_get_movies(movies):
     """unit test: get_movies()"""
 
-    response = get_movies(ids=[movie.tmdb_id for movie in movies])
+    response = get_movies(tmdb_ids=[movie.tmdb_id for movie in movies])
     assert response == movies

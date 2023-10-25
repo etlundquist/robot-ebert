@@ -10,13 +10,14 @@ from passlib.context import CryptContext
 from app import database
 from app.models import AddUserRequest, UpdateUserRequest, User, UserRating, AddRatingsResponse, Recommendation
 from app.lib.utils import get_user_recs
-from app.constants import engine, collaborative_index
+from app.constants import engine
+
 
 router = APIRouter()
 password_context = CryptContext(schemes=["bcrypt"])
 
 
-@router.post("/users/", status_code=200)
+@router.post("/users/")
 def create_user(user_request: AddUserRequest) -> str:
     """create a new user"""
 
@@ -48,7 +49,7 @@ def create_user(user_request: AddUserRequest) -> str:
         return user_id
 
 
-@router.get("/users/{user_id}/", status_code=200)
+@router.get("/users/{user_id}/")
 def get_user(user_id: str) -> User:
     """get an existing user by ID"""
 
@@ -62,7 +63,7 @@ def get_user(user_id: str) -> User:
         return user
 
 
-@router.put("/users/{user_id}/", status_code=200)
+@router.put("/users/{user_id}/")
 def update_user(user_id: str, user_request: UpdateUserRequest) -> None:
     """update an existing user by ID"""
 
@@ -78,7 +79,7 @@ def update_user(user_id: str, user_request: UpdateUserRequest) -> None:
         cnx.execute(statement)
 
 
-@router.delete("/users/{user_id}/", status_code=200)
+@router.delete("/users/{user_id}/")
 def delete_user(user_id: str) -> None:
     """delete an existing user by ID"""
 
@@ -91,7 +92,7 @@ def delete_user(user_id: str) -> None:
         cnx.execute(statement)
 
 
-@router.get("/users/{user_id}/ratings/", status_code=200)
+@router.get("/users/{user_id}/ratings/")
 def get_user_ratings(user_id: str) -> List[UserRating]:
     """get ratings for an existing user by ID"""
 
@@ -106,7 +107,7 @@ def get_user_ratings(user_id: str) -> List[UserRating]:
         return user_ratings
 
 
-@router.post("/users/{user_id}/ratings/", status_code=200)
+@router.post("/users/{user_id}/ratings/")
 def add_user_ratings(user_id: str, user_ratings: List[UserRating]) -> AddRatingsResponse:
     """add ratings for an existing user by ID"""
 
@@ -140,9 +141,9 @@ def add_user_ratings(user_id: str, user_ratings: List[UserRating]) -> AddRatings
     return response
 
 
-@router.get("/users/{user_id}/recommendations/", status_code=200)
+@router.get("/users/{user_id}/recommendations/")
 def get_user_recommendations(user_id: str, k: int = 10) -> List[Recommendation]:
     """get unconditional movie recommendations for an existing user by ID"""
 
-    user_recommendations = get_user_recs(collaborative_index, user_id, k)
+    user_recommendations = get_user_recs(user_id=user_id, k=k)
     return user_recommendations

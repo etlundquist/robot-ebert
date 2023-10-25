@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from app.database import get_prod_engine
 
 
-QUERY_SCORE_WEIGHT = 0.5
+QUERY_SCORE_WEIGHT = 0.8
 
 load_dotenv()
 pinecone.init(api_key=os.environ["PINECONE_API_KEY"], environment=os.environ["PINECONE_ENVIRONMENT"])
