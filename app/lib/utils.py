@@ -51,7 +51,7 @@ def get_search_recs(query: str, user_id: Optional[str] = None, k: int = 10) -> L
     query_embedding = embed_query(query)
     query_matches = content_index.query(vector=query_embedding, top_k=k)["matches"]
 
-    # get list of movies and a series of scores based on the query matches
+    # get list of movies and a series of scores based on the query matches sorting the result by tmdb_id
     query_movies = get_movies(tmdb_ids=[match["id"] for match in query_matches])
     query_movie_scores = pd.Series(data=[match["score"] for match in query_matches], index=[match["id"] for match in query_matches])
 
@@ -74,7 +74,7 @@ def get_search_recs(query: str, user_id: Optional[str] = None, k: int = 10) -> L
         user_movie_scores = pd.Series(data=[movie.popularity for movie in query_movies], index=[movie.tmdb_id for movie in query_movies])
         user_movie_scores = (user_movie_scores - user_movie_scores.min()) / (user_movie_scores.max() - user_movie_scores.min())
 
-    # create combined movie scores as a weighed average of the query-movie and user-movie scores and sort by tmdb_id
+    # create re-ranked combined movie scores as a weighed average of the [query-movie] and [user-movie] scores sorting the result by tmdb_id
     combined_movie_scores = (QUERY_SCORE_WEIGHT * query_movie_scores + (1 - QUERY_SCORE_WEIGHT) * user_movie_scores).sort_index()
 
     # convert the [movie, score] pairs into recommendation objects and return sorted by descending score

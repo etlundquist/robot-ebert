@@ -1,6 +1,8 @@
 # Robot Ebert
 
-A conversational movie recommender
+A Conversational Movie Recommendation App
+
+![robot-ebert](./images/robot-ebert.png)
 
 ## Run the FastAPI App Locally (Re-Load on Save)
 
