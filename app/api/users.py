@@ -2,7 +2,7 @@
 from uuid import uuid4
 from datetime import datetime
 from typing import List
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import insert, select, update, delete
 from sqlalchemy.exc import DatabaseError
 from passlib.context import CryptContext
@@ -27,7 +27,7 @@ def create_user(user_request: AddUserRequest) -> str:
         statement = select(database.users).where(database.users.c.email == user_request.email)
         result = cnx.execute(statement).all()
         if result:
-            raise ValueError(f"a user with email={user_request.email} already exists!")
+            raise HTTPException(status_code=400, detail=f"a user with email={user_request.email} already exists!")
 
         # generate a random user_id and hash the user's password for storage
         user_id = str(uuid4())

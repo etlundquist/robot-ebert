@@ -25,3 +25,9 @@ curl -X POST -H "Content-Type: application/json" -d '{"query": "a gritty crime d
 
 # get search recommendations for an identifier user
 curl -X POST -H "Content-Type: application/json" -d '{"query": "a gritty crime drama set in new york city starring al pacino", "user_id": "1", "k": 3}' ${ENDPOINT}/search/
+
+# login requests
+# --------------
+
+# get search recommendations for an anonymous user
+curl -X POST -H "Content-Type: application/json" -d '{"email": "etlundquist@gmail.com", "password": "1234"}' ${ENDPOINT}/login/

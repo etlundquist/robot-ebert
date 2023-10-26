@@ -4,10 +4,10 @@ from pydantic import BaseModel, Field
 
 
 class AddUserRequest(BaseModel):
-    email: str
-    password: str
     fname: str
     lname: str
+    email: str
+    password: str
 
 class UpdateUserRequest(BaseModel):
     email: str
@@ -21,6 +21,11 @@ class User(BaseModel):
     fname: str
     lname: str
     updated_at: datetime
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
 
 
 class Movie(BaseModel):
