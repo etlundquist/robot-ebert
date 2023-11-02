@@ -47,12 +47,20 @@ class Movie(BaseModel):
     vote_count: int
 
 
-class UserRating(BaseModel):
-    tmdb_id: str
-    rating: float
 
 class Rating(BaseModel):
     user_id: str
+    tmdb_id: str
+    rating: float
+
+class DisplayRating(BaseModel):
+    tmdb_id: str
+    tmdb_homepage: str
+    title: str
+    release_date: datetime
+    rating: float
+
+class AddRatingRequest(BaseModel):
     tmdb_id: str
     rating: float
 

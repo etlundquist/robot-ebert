@@ -8,7 +8,7 @@ from sqlalchemy.exc import DatabaseError
 from passlib.context import CryptContext
 
 from app import database
-from app.models import AddUserRequest, UpdateUserRequest, User, UserRating, AddRatingsResponse, Recommendation
+from app.models import AddUserRequest, UpdateUserRequest, User, DisplayRating, AddRatingRequest, AddRatingsResponse, Recommendation
 from app.lib.utils import get_user_recs
 from app.constants import engine
 
@@ -93,34 +93,40 @@ def delete_user(user_id: str) -> None:
 
 
 @router.get("/users/{user_id}/ratings/")
-def get_user_ratings(user_id: str) -> List[UserRating]:
+def get_user_ratings(user_id: str) -> List[DisplayRating]:
     """get ratings for an existing user by ID"""
 
     with engine.begin() as cnx:
         statement = select(
-            database.ratings
+            database.movies.c.tmdb_id,
+            database.movies.c.tmdb_homepage,
+            database.movies.c.title,
+            database.movies.c.release_date,
+            database.ratings.c.rating
+        ).select_from(
+            database.ratings.join(database.movies, database.ratings.c.tmdb_id == database.movies.c.tmdb_id)
         ).where(
             database.ratings.c.user_id == user_id
         )
 
-        user_ratings = [UserRating(**row._asdict()) for row in cnx.execute(statement).all()]
+        user_ratings = [DisplayRating(**row._asdict()) for row in cnx.execute(statement).all()]
         return user_ratings
 
 
 @router.post("/users/{user_id}/ratings/")
-def add_user_ratings(user_id: str, user_ratings: List[UserRating]) -> AddRatingsResponse:
+def add_user_ratings(user_id: str, requests: List[AddRatingRequest]) -> AddRatingsResponse:
     """add ratings for an existing user by ID"""
 
     cnt_added, cnt_updated = 0, 0
     updated_at = datetime.now()
 
-    for user_rating in user_ratings:
+    for request in requests:
         try:
             with engine.begin() as cnx:
                 statement = insert(database.ratings).values(
                     user_id=user_id,
-                    tmdb_id=user_rating.tmdb_id,
-                    rating=user_rating.rating,
+                    tmdb_id=request.tmdb_id,
+                    rating=request.rating,
                     updated_at=updated_at,
                 )
                 result = cnx.execute(statement)
@@ -129,9 +135,9 @@ def add_user_ratings(user_id: str, user_ratings: List[UserRating]) -> AddRatings
             with engine.begin() as cnx:
                 statement = update(database.ratings).where(
                     database.ratings.c.user_id == user_id,
-                    database.ratings.c.tmdb_id == user_rating.tmdb_id
+                    database.ratings.c.tmdb_id == request.tmdb_id
                 ).values(
-                    rating=user_rating.rating,
+                    rating=request.rating,
                     updated_at=updated_at,
                 )
                 result = cnx.execute(statement)
