@@ -45,6 +45,69 @@ def get_movie_tmdb(tmdb_id: str) -> dict:
     return response.json()
 
 
+def get_request_token() -> str:
+    """generate a new TMDB API request token"""
+
+    session = st.session_state["http_session"]
+    endpoint = "https://api.themoviedb.org/3/authentication/token/new"
+    headers = {"Authorization": f"Bearer {os.environ['TMDB_ACCESS_TOKEN']}"}
+
+    response = session.get(endpoint, headers=headers)
+    response.raise_for_status()
+
+    request_token = response.json()["request_token"]
+    return request_token
+
+
+def get_or_create_tmdb_session() -> str:
+    """fetch the current TMDB user session or create a new one"""
+
+    if "tmdb_session_id" in st.session_state:
+        return st.session_state["tmdb_session_id"]
+    else:
+        session = st.session_state["http_session"]
+        endpoint = "https://api.themoviedb.org/3/authentication/session/new"
+        headers = {"Authorization": f"Bearer {os.environ['TMDB_ACCESS_TOKEN']}"}
+        params = {"request_token": st.session_state["request_token"]}
+        response = session.get(endpoint, params=params, headers=headers)
+        try:
+            response.raise_for_status()
+            session_id = response.json()["session_id"]
+            st.session_state["tmdb_session_id"] = session_id
+            return session_id
+        except HTTPError as err:
+            st.error("You must authenticate your TMDB account before importing movie ratings")
+            raise err
+
+
+def get_tmdb_user_ratings() -> List[dict]:
+    """fetch user ratings from TMDB with a new user session"""
+
+    # extract HTTP session and set common headers
+    session = st.session_state["http_session"]
+    headers = {"Authorization": f"Bearer {os.environ['TMDB_ACCESS_TOKEN']}"}
+
+    # get or create a TMDB session
+    session_id = get_or_create_tmdb_session()
+
+    # get the accountID for the authenticated user
+    endpoint = "https://api.themoviedb.org/3/account"
+    params = {"session_id": session_id}
+    response = session.get(endpoint, params=params, headers=headers)
+    response.raise_for_status()
+    account_id = response.json()["id"]
+
+    # get the rated movies for the account
+    endpoint = f"https://api.themoviedb.org/3/account/{account_id}/rated/movies"
+    params = {"session_id": session_id}
+    response = session.get(endpoint, params=params, headers=headers)
+    response.raise_for_status()
+
+    # extract the [tmdb_id, rating] pairs from the user's returned ratings
+    ratings = [{"tmdb_id": str(result["id"]), "rating": result["rating"] / 2} for result in response.json()["results"]]
+    return ratings
+
+
 def validate_ratings(ratings: DataFrame) -> None:
     """validate a DataFrame of [tmdb_id, rating] ratings"""
 
@@ -149,7 +212,7 @@ def submit_login(email: str, password: str):
 
 
 def submit_manual_ratings(manual_ratings: DataFrame):
-    """persist updated manual ratings to the database"""
+    """save updated manual ratings to the database"""
 
     try:
         validate_ratings(ratings=manual_ratings)
@@ -158,6 +221,20 @@ def submit_manual_ratings(manual_ratings: DataFrame):
         st.success("Updated Ratings Saved!", icon="🎉")
     except (ValueError, HTTPError) as err:
         st.error("Updated Ratings Invalid!", icon="🚨")
+        print(err)
+
+
+def submit_import_ratings():
+    """save updated imported ratings to the database"""
+
+    try:
+        imported_ratings = get_tmdb_user_ratings()
+        add_user_ratings(user_id=st.session_state["user_id"], ratings=imported_ratings)
+        get_user_ratings.clear()
+        st.dataframe(pd.DataFrame(imported_ratings), use_container_width=True, hide_index=True)
+        st.success("Imported Ratings Saved!", icon="🎉")
+    except (ValueError, HTTPError) as err:
+        st.error("Error Importing Ratings!", icon="🚨")
         print(err)
 
 
@@ -219,19 +296,26 @@ def render_ratings():
     # process the manual update logic via form submission
     with col_manual:
         st.markdown("#### Add or Update Movie Ratings Manually")
+        st.info("Use the editable table below to add movie ratings manually and then hit the button to save your updated movie ratings")
         with st.form(key="update_manual_ratings", clear_on_submit=False):
+            submit = st.form_submit_button("Save Updated Movie Ratings", use_container_width=True)
             manual_ratings_config = {"tmdb_id": st.column_config.TextColumn(required=True), "rating": st.column_config.NumberColumn(required=True, min_value=1.0, max_value=5.0, step=0.5)}
             manual_ratings = st.data_editor(pd.DataFrame(columns=["tmdb_id", "rating"]), use_container_width=True, hide_index=True, column_config=manual_ratings_config, num_rows="dynamic")
-            submit = st.form_submit_button("Save Updated Ratings", use_container_width=True)
             if submit:
                 submit_manual_ratings(manual_ratings)
 
     # process the import update logic via form submission
     with col_import:
         st.markdown("#### Add or Update Movie Ratings from TMDB")
-        import_ratings_save = st.button("Import TMDB Ratings", use_container_width=True)
-        if import_ratings_save:
-            st.success("Ratings Saved!")
+        st.info("Authenticate your TMDB account and then hit the button to import your current TMDB movie ratings")
+        with st.form(key="update_import_ratings", clear_on_submit=False):
+            submit = st.form_submit_button("Import TMDB Movie Ratings", use_container_width=True)
+            if submit:
+                submit_import_ratings()
+            else:
+                imported_ratings_placeholder = pd.DataFrame(columns=["tmdb_id", "rating"])
+                st.dataframe(imported_ratings_placeholder, use_container_width=True, hide_index=True)
+
 
     # populate the current set of the user's saved ratings after applying the updates above
     with container_user_ratings:
@@ -245,15 +329,28 @@ def render_recommendations():
     """render the contents of the [recommendations] tab"""
 
     user_recommendations = get_user_recommendations(st.session_state["user_id"])
-    st.markdown("### Current User Recommendations")
+    st.markdown("### Top Overall Recommended Movies")
     st.divider()
     st.dataframe(data=user_recommendations, use_container_width=True, hide_index=True)
 
 # define global page options
 # --------------------------
 
-st.set_page_config(page_title="Robot Ebert", page_icon="🤖", layout="wide")
-st.header("Robot Ebert", divider=True)
+st.set_page_config(page_title="RobotEbert", page_icon="🤖", layout="wide")
+st.header("RobotEbert", divider=True)
+
+# define custom CSS
+# -----------------
+
+custom_css = """
+<style>
+    .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+        font-size: 1.5rem;
+    }
+</style>
+"""
+
+st.markdown(custom_css, unsafe_allow_html=True)
 
 # initialize persistent session state values
 # ------------------------------------------
@@ -269,7 +366,7 @@ if "http_session" not in st.session_state:
     session.headers.update(common_headers)
     st.session_state["http_session"] = session
 
-# whether or not a user is currently logged in
+# indicator for whether or not a user is currently logged in
 if "user_login" not in st.session_state:
     st.session_state["user_login"] = False
 
@@ -278,6 +375,10 @@ if "search_results" not in st.session_state:
     recommendation_columns = ["rank", "score"] + list(Movie.model_fields.keys())
     st.session_state["recommendation_columns"] = recommendation_columns
     st.session_state["search_results"] = pd.DataFrame(columns=recommendation_columns)
+
+# request token to generate TMDB user sessions
+if "request_token" not in st.session_state:
+    st.session_state["request_token"] = get_request_token()
 
 # render a static left sidebar
 # ----------------------------
@@ -294,7 +395,8 @@ with st.sidebar:
             lname = st.text_input(label="Last Name")
             email = st.text_input(label="Email Address")
             password = st.text_input(label="Password", type="password")
-            submit = st.form_submit_button(label="Sign Up", use_container_width=True)
+            submit_help = "create an account to personalize content"
+            submit = st.form_submit_button(label="Sign Up", help=submit_help, use_container_width=True)
             if submit:
                 submit_signup(fname, lname, email, password)
 
@@ -303,9 +405,15 @@ with st.sidebar:
         with st.form(key="login", clear_on_submit=False):
             email = st.text_input(label="Email Address")
             password = st.text_input(label="Password", type="password")
-            submit = st.form_submit_button(label="Log In", use_container_width=True)
+            submit_help = "log in to edit ratings and view recommendations"
+            submit = st.form_submit_button(label="Log In", help=submit_help, use_container_width=True)
             if submit:
                 submit_login(email, password)
+
+    # link button: authenticate your TMDB account
+    tmdb_auth_url = f"https://www.themoviedb.org/authenticate/{st.session_state['request_token']}"
+    tmdb_auth_help = "authenticate with TMDB to import movie ratings"
+    st.link_button("Authenticate Your TMDB Account", url=tmdb_auth_url, help=tmdb_auth_help, use_container_width=True)
 
 # render a dynamic tabset for the main content area
 # -------------------------------------------------
