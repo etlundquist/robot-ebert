@@ -7,10 +7,10 @@ from sqlalchemy import insert, select, update, delete
 from sqlalchemy.exc import DatabaseError
 from passlib.context import CryptContext
 
-from app import database
-from app.models import AddUserRequest, UpdateUserRequest, User, DisplayRating, AddRatingRequest, AddRatingsResponse, Recommendation
-from app.lib.utils import get_user_recs
-from app.constants import engine
+from backend.app import database
+from backend.app.constants import engine
+from backend.app.lib import get_user_recs
+from shared.models import AddUserRequest, UpdateUserRequest, User, DisplayRating, AddRatingRequest, AddRatingsResponse, Recommendation
 
 
 router = APIRouter()

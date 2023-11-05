@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 from typing import List
 
-from app.models import SearchRequest, Recommendation
-from app.lib.utils import get_search_recs
+from shared.models import SearchRequest, Recommendation
+from backend.app.lib import get_search_recs
 
 
 router = APIRouter()

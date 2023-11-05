@@ -1,0 +1,7 @@
+numpy
+pandas
+requests
+pydantic
+streamlit
+google-auth
+python-dotenv

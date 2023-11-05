@@ -3,9 +3,9 @@ import pytest
 from datetime import datetime
 from sqlalchemy import insert
 
-from app import database
-from app.models import Movie
-from app.lib.utils import get_movies
+from src.backend.app import database
+from src.shared.models import Movie
+from src.backend.app.lib import get_movies
 
 
 @pytest.fixture(autouse=True)

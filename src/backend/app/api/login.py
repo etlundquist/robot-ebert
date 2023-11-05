@@ -3,9 +3,9 @@ from sqlalchemy import insert, select, update, delete
 from sqlalchemy.exc import NoResultFound
 from passlib.context import CryptContext
 
-from app import database
-from app.models import LoginRequest, User
-from app.constants import engine
+from backend.app import database
+from backend.app.constants import engine
+from shared.models import LoginRequest, User
 
 
 router = APIRouter()

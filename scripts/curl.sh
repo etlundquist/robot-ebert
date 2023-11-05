@@ -1,6 +1,6 @@
 
 export ENDPOINT=http://127.0.0.1:8080
-export ENDPOINT=https://robot-ebert-4diyefjzaq-uw.a.run.app
+export ENDPOINT=https://robot-ebert-fastapi-4diyefjzaq-uw.a.run.app
 
 # user requests
 # -------------
