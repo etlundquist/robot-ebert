@@ -3,7 +3,7 @@ import openai
 import pinecone
 from dotenv import load_dotenv
 
-from app.database import get_prod_engine
+from backend.app.database import get_prod_engine
 
 
 QUERY_SCORE_WEIGHT = 0.9

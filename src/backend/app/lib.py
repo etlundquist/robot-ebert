@@ -6,9 +6,9 @@ from typing import List, Optional
 from sklearn.metrics.pairwise import cosine_similarity
 from sqlalchemy import select
 
-from app import database
-from app.models import Movie, Recommendation
-from app.constants import engine, collaborative_index, content_index, QUERY_SCORE_WEIGHT
+from backend.app import database
+from backend.app.constants import engine, collaborative_index, content_index, QUERY_SCORE_WEIGHT
+from shared.models import Movie, Recommendation
 
 
 def embed_query(query: str) -> List[float]:

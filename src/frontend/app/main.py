@@ -12,23 +12,48 @@ from dotenv import load_dotenv
 from requests import HTTPError
 from pandas import DataFrame
 
-# FIXME: configure imports to work from top-level package
-from models import Movie, Recommendation
 
-# NOTE: load all secrets from environment variables for local development/testing
-# NOTE: all variables in .env must be configured as K8s secrets for cloud run deployment
+sys.path.append(os.path.abspath("."))
+from shared.models import Movie, Recommendation
+# NOTE: hack to fix relative imports for "streamlit run frontend/app/main.py"
+
+
 load_dotenv()
+
 
 # define helper functions
 # -----------------------
+
+def create_backend_headers() -> dict:
+    """create authorization headers for backend API requests"""
+
+    backend_url = os.environ.get("BACKEND_URL", "http://127.0.0.1:8080")
+    if backend_url.endswith("run.app"):
+        import google.auth.transport.requests
+        import google.oauth2.id_token
+        auth_req = google.auth.transport.requests.Request()
+        id_token = google.oauth2.id_token.fetch_id_token(auth_req, backend_url)
+        headers = {"Authorization": f"Bearer {id_token}"}
+    else:
+        headers = {}
+    return headers
+
+
+def create_tmdb_headers() -> dict:
+    """create authorization headers for TMDB API requests"""
+
+    headers = {"Authorization": f"Bearer {os.environ['TMDB_ACCESS_TOKEN']}"}
+    return headers
+
 
 def get_movie(tmdb_id: str) -> dict:
     """get movie details by ID from the application database"""
 
     session = st.session_state["http_session"]
     endpoint = f"{st.session_state['backend_url']}/movies/{tmdb_id}/"
+    headers = st.session_state["backend_headers"]
 
-    response = session.get(endpoint)
+    response = session.get(endpoint, headers=headers)
     response.raise_for_status()
     return response.json()
 
@@ -38,7 +63,7 @@ def get_movie_tmdb(tmdb_id: str) -> dict:
 
     session = st.session_state["http_session"]
     endpoint = f"https://api.themoviedb.org/3/movie/{tmdb_id}"
-    headers = {"Authorization": f"Bearer {os.environ['TMDB_ACCESS_TOKEN']}"}
+    headers = st.session_state["tmdb_headers"]
 
     response = session.get(endpoint, headers=headers)
     response.raise_for_status()
@@ -50,7 +75,7 @@ def get_request_token() -> str:
 
     session = st.session_state["http_session"]
     endpoint = "https://api.themoviedb.org/3/authentication/token/new"
-    headers = {"Authorization": f"Bearer {os.environ['TMDB_ACCESS_TOKEN']}"}
+    headers = st.session_state["tmdb_headers"]
 
     response = session.get(endpoint, headers=headers)
     response.raise_for_status()
@@ -67,7 +92,7 @@ def get_or_create_tmdb_session() -> str:
     else:
         session = st.session_state["http_session"]
         endpoint = "https://api.themoviedb.org/3/authentication/session/new"
-        headers = {"Authorization": f"Bearer {os.environ['TMDB_ACCESS_TOKEN']}"}
+        headers = st.session_state["tmdb_headers"]
         params = {"request_token": st.session_state["request_token"]}
         response = session.get(endpoint, params=params, headers=headers)
         try:
@@ -85,7 +110,7 @@ def get_tmdb_user_ratings() -> List[dict]:
 
     # extract HTTP session and set common headers
     session = st.session_state["http_session"]
-    headers = {"Authorization": f"Bearer {os.environ['TMDB_ACCESS_TOKEN']}"}
+    headers = st.session_state["tmdb_headers"]
 
     # get or create a TMDB session
     session_id = get_or_create_tmdb_session()
@@ -130,8 +155,9 @@ def get_user_ratings(user_id: str) -> DataFrame:
 
     session = st.session_state["http_session"]
     endpoint = f"{st.session_state['backend_url']}/users/{user_id}/ratings/"
+    headers = st.session_state["backend_headers"]
 
-    response = session.get(endpoint)
+    response = session.get(endpoint, headers=headers)
     response.raise_for_status()
 
     user_ratings = pd.DataFrame(response.json())
@@ -143,8 +169,9 @@ def add_user_ratings(user_id: str, ratings: List[dict]) -> None:
 
     session = st.session_state["http_session"]
     endpoint = f"{st.session_state['backend_url']}/users/{user_id}/ratings/"
+    headers = st.session_state["backend_headers"]
 
-    response = session.post(endpoint, json=ratings)
+    response = session.post(endpoint, json=ratings, headers=headers)
     response.raise_for_status()
 
 
@@ -164,9 +191,10 @@ def get_user_recommendations(user_id: str) -> DataFrame:
     user_id = "1"
     session = st.session_state["http_session"]
     endpoint = f"{st.session_state['backend_url']}/users/{user_id}/recommendations/"
+    headers = st.session_state["backend_headers"]
     # FIXME: remove hard-coded user_id once better data is available
 
-    recommendations_response = session.get(endpoint)
+    recommendations_response = session.get(endpoint, headers=headers)
     recommendations_response.raise_for_status()
 
     recommendations = format_recommendations([Recommendation(**item) for item in recommendations_response.json()])
@@ -181,9 +209,10 @@ def submit_signup(fname: str, lname: str, email: str, password: str):
     session = st.session_state["http_session"]
     endpoint = f"{st.session_state['backend_url']}/users/"
     payload = {"fname": fname, "lname": lname, "email": email, "password": password}
+    headers = st.session_state["backend_headers"]
 
     try:
-        response = session.post(endpoint, json=payload)
+        response = session.post(endpoint, json=payload, headers=headers)
         response.raise_for_status()
         st.session_state["user_login"] = True
         st.session_state["user_id"] = response.json()
@@ -199,9 +228,10 @@ def submit_login(email: str, password: str):
     session = st.session_state["http_session"]
     endpoint = f"{st.session_state['backend_url']}/login/"
     payload = {"email": email, "password": password}
+    headers = st.session_state["backend_headers"]
 
     try:
-        response = session.post(endpoint, json=payload)
+        response = session.post(endpoint, json=payload, headers=headers)
         response.raise_for_status()
         st.session_state["user_login"] = True
         st.session_state["user_id"] = response.json()
@@ -244,9 +274,10 @@ def callback_search_query():
     search_query = st.session_state["search_query"].strip()
     session = st.session_state["http_session"]
     endpoint = f"{st.session_state['backend_url']}/search/"
+    headers = st.session_state["backend_headers"]
     payload = {"query": search_query}
 
-    search_response = session.post(endpoint, json=payload)
+    search_response = session.post(endpoint, json=payload, headers=headers)
     search_response.raise_for_status()
 
     search_results = format_recommendations([Recommendation(**item) for item in search_response.json()])
@@ -318,10 +349,14 @@ def render_ratings():
 
     # populate the current set of the user's saved ratings after applying the updates above
     with container_user_ratings:
-        user_ratings = get_user_ratings(user_id=st.session_state["user_id"]).sort_values("tmdb_id")
         st.markdown("### Saved Movie Ratings")
-        column_config = {"tmdb_homepage": st.column_config.LinkColumn()}
-        st.dataframe(data=user_ratings, use_container_width=True, hide_index=True, column_config=column_config)
+        user_ratings = get_user_ratings(user_id=st.session_state["user_id"])
+        if len(user_ratings) > 0:
+            column_config = {"tmdb_homepage": st.column_config.LinkColumn()}
+            st.dataframe(data=user_ratings.sort_values("tmdb_id"), use_container_width=True, hide_index=True, column_config=column_config)
+        else:
+            empty_frame = pd.DataFrame(columns=["tmdb_id", "tmdb_homepage", "title", "release_date", "rating"])
+            st.dataframe(data=empty_frame, use_container_width=True, hide_index=True)
 
 
 def render_recommendations():
@@ -360,10 +395,13 @@ if "backend_url" not in st.session_state:
 
 # requests Session object with common headers
 if "http_session" not in st.session_state:
-    session = requests.Session()
+
+    http_session = requests.Session()
     common_headers = {"accept": "application/json"}
-    session.headers.update(common_headers)
-    st.session_state["http_session"] = session
+    http_session.headers.update(common_headers)
+    st.session_state["http_session"] = http_session
+    st.session_state["backend_headers"] = create_backend_headers()
+    st.session_state["tmdb_headers"] = create_tmdb_headers()
 
 # indicator for whether or not a user is currently logged in
 if "user_login" not in st.session_state:
@@ -385,7 +423,7 @@ if "request_token" not in st.session_state:
 with st.sidebar:
 
     # image: logo image for the app
-    st.image("./images/robot-ebert.png", caption="he's more machine now than man...")
+    st.image("frontend/static/robot-ebert.png", caption="he's more machine now than man...")
 
     # form: create a new account
     with st.expander(label="Sign Up", expanded=False):

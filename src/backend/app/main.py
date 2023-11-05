@@ -2,10 +2,10 @@ import os
 import uvicorn
 from fastapi import FastAPI
 
-from app.api.users import router as users_router
-from app.api.movies import router as movies_router
-from app.api.search import router as search_router
-from app.api.login import router as login_router
+from backend.app.api.users import router as users_router
+from backend.app.api.movies import router as movies_router
+from backend.app.api.search import router as search_router
+from backend.app.api.login import router as login_router
 
 
 app = FastAPI()
@@ -27,4 +27,4 @@ if __name__ == "__main__":
     host = str(os.environ.get("HOST", "0.0.0.0"))
     port = int(os.environ.get("PORT", "8080"))
     reload = bool(os.environ.get("RELOAD", ""))
-    uvicorn.run("app.main:app", host=host, port=port, reload=reload)
+    uvicorn.run("backend.app.main:app", host=host, port=port, reload=reload)

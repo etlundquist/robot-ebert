@@ -3,8 +3,8 @@ import pytest
 
 from fastapi.testclient import TestClient
 
-from app.main import app
-from app.database import metadata, get_test_engine
+from src.backend.app.main import app
+from src.backend.app.database import metadata, get_test_engine
 
 
 @pytest.fixture(scope="session")

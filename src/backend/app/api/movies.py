@@ -2,9 +2,10 @@ from datetime import datetime
 from fastapi import APIRouter
 from sqlalchemy import insert, select, update, delete
 
-from app import database
-from app.models import Movie
-from app.constants import engine
+from backend.app import database
+from backend.app.constants import engine
+from shared.models import Movie
+
 
 router = APIRouter()
 

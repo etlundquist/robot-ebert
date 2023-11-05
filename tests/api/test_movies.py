@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select
 from datetime import datetime
 
-from app.models import Movie
+from src.shared.models import Movie
 
 
 @pytest.fixture(autouse=True)

@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+
+  fastapi-backend:
+    build: ./src/backend/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_ENVIRONMENT=${PINECONE_ENVIRONMENT}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    networks:
+      - webnet
+
+  streamlit-frontend:
+    build: ./src/frontend/Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      - BACKEND_URL=http://fastapi-backend:8080
+      - TMDB_ACCESS_TOKEN=${TMDB_ACCESS_TOKEN}
+    networks:
+      - webnet
+
+networks:
+  webnet:

@@ -4,37 +4,45 @@ A Conversational Movie Recommendation App
 
 ![robot-ebert](./images/robot-ebert.png)
 
-## Run the FastAPI App Locally (Re-Load on Save)
+## Run the Application Locally
+
+### Run the FastAPI Backend (Reload on Save)
 
 ```bash
-PYTHONPATH=$PWD RELOAD=true python app/main.py
+cd src && PYTHONPATH=$PWD RELOAD=true python backend/app/main.py
 ```
 
-## Run the FastAPI App via Docker Desktop
+### Run the Streamlit Frontend (Reload on Save)
 
 ```bash
-docker build -t robot-ebert-fastapi .
+cd src && streamlit run frontend/app/main.py
+```
+
+## Run the Application via Docker Desktop
+
+### Run the FastAPI Backend
+
+```bash
+cd src && docker build -f backend/Dockerfile -t robot-ebert-fastapi . && cd -
 docker run -p 8080:8080 --env-file .env robot-ebert-fastapi
 ```
 
-## Inspect the Online API Documentation
+### Run the Streamlit Frontend
 
 ```bash
-GET http://127.0.0.1:8080/docs
-GET http://127.0.0.1:8080/redoc
+cd src && docker build -f frontend/Dockerfile -t robot-ebert-streamlit . && cd -
+docker run -p 8501:8501 --env-file .env robot-ebert-streamlit
 ```
 
-## Build and Deploy the FastAPI App via GCP Artifact Registry and GCP Cloud Run
+## Deploy the Application to GCP Cloud Run
 
-### Set Environment Variables
+### Set Global Environment Variables
 
 ```bash
 export PROJECT_ID="robot-ebert"
 export LOCATION="us-west1"
 export REPO_NAME="robot-ebert"
 export REPO_DESCRIPTION="container images for the Robot Ebert movie recommender application"
-export IMAGE_NAME="robot-ebert-fastapi"
-export SERVICE_NAME="robot-ebert"
 ```
 
 ### Create the Repo in GCP Artifact Registry
@@ -43,36 +51,58 @@ export SERVICE_NAME="robot-ebert"
 gcloud auth login
 gcloud artifacts repositories create ${REPO_NAME} --repository-format=docker --location=${LOCATION} --description=${REPO_DESCRIPTION}
 gcloud artifacts repositories list
-```
-
-### Configure Docker to use the Google Cloud CLI to authenticate requests to GCP Artifact Registry
-
-```bash
 gcloud auth configure-docker ${LOCATION}-docker.pkg.dev
 ```
 
-### Build an Updated Image Targeting a 64 Bit Linux Runtime
+### Update the FastAPI Backend Service
+
+#### Set Environment Variables
 
 ```bash
-docker build --platform linux/amd64 -t ${IMAGE_NAME} .
+export IMAGE_NAME="robot-ebert-fastapi"
+export SERVICE_NAME="robot-ebert-fastapi"
 ```
 
-### Tag and Push the Image to GCP Artifact Registry
+#### Build and Push the FastAPI Image to Artifact Registry
 
 ```bash
+cd src && docker build --platform linux/amd64 -f backend/Dockerfile -t ${IMAGE_NAME} . && cd -
 docker tag ${IMAGE_NAME}:latest ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:latest
 docker push ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:latest
 ```
 
-### Deploy the Updated Image to the Existing GCP Cloud Run Service
+#### Update the FastAPI Backend Cloud Run Service to Use the New Image
 
 ```bash
 gcloud run deploy ${SERVICE_NAME} --image ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:latest --platform managed --region $LOCATION
 ```
 
-## Create and Connect to the Application Database in GCP CloudSQL
+### Update the Streamlit Frontend Service
 
-### Apply the SQLAlchemy Tables DDL to the Database
+#### Set Environment Variables
+
+```bash
+export IMAGE_NAME="robot-ebert-streamlit"
+export SERVICE_NAME="robot-ebert-streamlit"
+```
+
+#### Build and Push the Streamlit Image to Artifact Registry
+
+```bash
+cd src && docker build --platform linux/amd64 -f frontend/Dockerfile -t ${IMAGE_NAME} . && cd -
+docker tag ${IMAGE_NAME}:latest ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:latest
+docker push ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:latest
+```
+
+#### Update the Frontend Cloud Run Service to Use the New Image
+
+```bash
+gcloud run deploy ${SERVICE_NAME} --image ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${REPO_NAME}/${IMAGE_NAME}:latest --platform managed --region $LOCATION
+```
+
+## Connect to the Application Database in GCP CloudSQL
+
+### Apply the SQLAlchemy DDL to the Database to Create the Tables
 
 ```bash
 gcloud auth application-default login
