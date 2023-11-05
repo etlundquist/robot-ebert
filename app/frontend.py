@@ -316,7 +316,6 @@ def render_ratings():
                 imported_ratings_placeholder = pd.DataFrame(columns=["tmdb_id", "rating"])
                 st.dataframe(imported_ratings_placeholder, use_container_width=True, hide_index=True)
 
-
     # populate the current set of the user's saved ratings after applying the updates above
     with container_user_ratings:
         user_ratings = get_user_ratings(user_id=st.session_state["user_id"]).sort_values("tmdb_id")
