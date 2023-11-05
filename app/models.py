@@ -4,10 +4,10 @@ from pydantic import BaseModel, Field
 
 
 class AddUserRequest(BaseModel):
-    email: str
-    password: str
     fname: str
     lname: str
+    email: str
+    password: str
 
 class UpdateUserRequest(BaseModel):
     email: str
@@ -21,6 +21,11 @@ class User(BaseModel):
     fname: str
     lname: str
     updated_at: datetime
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
 
 
 class Movie(BaseModel):
@@ -42,12 +47,20 @@ class Movie(BaseModel):
     vote_count: int
 
 
-class UserRating(BaseModel):
-    tmdb_id: str
-    rating: float
 
 class Rating(BaseModel):
     user_id: str
+    tmdb_id: str
+    rating: float
+
+class DisplayRating(BaseModel):
+    tmdb_id: str
+    tmdb_homepage: str
+    title: str
+    release_date: datetime
+    rating: float
+
+class AddRatingRequest(BaseModel):
     tmdb_id: str
     rating: float
 

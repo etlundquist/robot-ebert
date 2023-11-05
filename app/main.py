@@ -5,12 +5,14 @@ from fastapi import FastAPI
 from app.api.users import router as users_router
 from app.api.movies import router as movies_router
 from app.api.search import router as search_router
+from app.api.login import router as login_router
 
 
 app = FastAPI()
 app.include_router(users_router, tags=["Users"])
 app.include_router(movies_router, tags=["Movies"])
 app.include_router(search_router, tags=["Search"])
+app.include_router(login_router, tags=["Login"])
 
 
 @app.get("/")
