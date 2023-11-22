@@ -2,8 +2,8 @@ import pytest
 from sqlalchemy import select
 from uuid import UUID
 
-from app import database
-from app.models import AddUserRequest, UpdateUserRequest
+from src.backend.app import database
+from src.shared.models import AddUserRequest, UpdateUserRequest
 
 
 @pytest.fixture(autouse=True)
