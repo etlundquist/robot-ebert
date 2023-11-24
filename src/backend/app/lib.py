@@ -7,15 +7,15 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sqlalchemy import select
 
 from backend.app import database
-from backend.app.constants import engine, collaborative_index, content_index, QUERY_SCORE_WEIGHT
+from backend.app.constants import engine, openai_client, movies_content_index, users_collab_index, movies_collab_index, QUERY_SCORE_WEIGHT
 from shared.models import Movie, Recommendation
 
 
 def embed_query(query: str) -> List[float]:
     """convert a natural language query into an embedding vector"""
 
-    response = openai.Embedding.create(model="text-embedding-ada-002", input=query)
-    embedding = response["data"][0]["embedding"]
+    response = openai_client.embeddings.create(input=query, model="text-embedding-ada-002")
+    embedding = response.data[0].embedding
     return embedding
 
 
@@ -32,12 +32,13 @@ def get_user_recs(user_id: str, k: int = 10) -> List[Recommendation]:
     """get a list of movie recommendations based on a user's collaborative filtering embedding"""
 
     # find the best matches based on the user's collaborative filtering embedding
-    user_embedding = collaborative_index.fetch(ids=[user_id], namespace="users")["vectors"][user_id]["values"]
-    user_matches = collaborative_index.query(vector=user_embedding, namespace="movies", top_k=k)["matches"]
+    user_embedding = users_collab_index.get(ids=user_id, include=["embeddings"])["embeddings"][0]
+    user_matches = movies_collab_index.query(query_embeddings=user_embedding, n_results=k, include=["embeddings", "distances"])
+    user_matches = sorted(zip(user_matches["ids"][0], user_matches["distances"][0]), key=lambda x: x[0])
 
     # get sorted lists of [movies, scores] by tmdb_id
-    movies = get_movies(tmdb_ids=[match["id"] for match in user_matches])
-    scores = [match["score"] for match in sorted(user_matches, key=lambda x: x["id"])]
+    movies = get_movies(tmdb_ids=[match[0] for match in user_matches])
+    scores = [1.0 - match[1] for match in user_matches]
 
     # convert the [movie, score] pairs into recommendation objects and return sorted by descending score
     user_recs = [Recommendation(movie=movie, score=score) for movie, score in zip(movies, scores)]
@@ -49,28 +50,26 @@ def get_search_recs(query: str, user_id: Optional[str] = None, k: int = 10) -> L
 
     # find the best matches based on the user's search query embedding
     query_embedding = embed_query(query)
-    query_matches = content_index.query(vector=query_embedding, top_k=k)["matches"]
+    query_matches = movies_content_index.query(query_embeddings=query_embedding, n_results=k, include=["embeddings", "distances"])
+    query_matches = sorted(zip(query_matches["ids"][0], query_matches["distances"][0]), key=lambda x: x[0])
+    query_movie_scores = pd.Series(data=[1.0 - match[1] for match in query_matches], index=[match[0] for match in query_matches])
 
     # get list of movies and a series of scores based on the query matches sorting the result by tmdb_id
-    query_movies = get_movies(tmdb_ids=[match["id"] for match in query_matches])
-    query_movie_scores = pd.Series(data=[match["score"] for match in query_matches], index=[match["id"] for match in query_matches])
+    query_movies = get_movies(tmdb_ids=[match[0] for match in query_matches])
 
     if user_id:
 
         # get the user's CF embedding and the CF embeddings for the query match movies sorted by tmdb_id
-        user_cf_embedding = collaborative_index.fetch(ids=[user_id], namespace="users")["vectors"][user_id]["values"]
-        movie_cf_vectors = collaborative_index.fetch(ids=[match["id"] for match in query_matches], namespace="movies")["vectors"]
-        movie_cf_vectors = sorted([(val["id"], val["values"]) for val in movie_cf_vectors.values()], key=lambda x: x[0])
-        movie_cf_ids, movie_cf_embeddings = map(list, zip(*movie_cf_vectors))
+        user_cf_embedding = users_collab_index.get(ids=user_id, include=["embeddings"])["embeddings"][0]
+        movie_cf_embeddings = movies_collab_index.get(ids=[match[0] for match in query_matches], include=["embeddings"])["embeddings"]
 
         # calculate user-movie scores for the query match movies based on user-movie CF embedding similarities
         user_movie_scores = cosine_similarity(np.array(movie_cf_embeddings), np.array(user_cf_embedding).reshape(1, -1)).squeeze()
-        user_movie_scores = (user_movie_scores - user_movie_scores.min()) / (user_movie_scores.max() - user_movie_scores.min())
-        user_movie_scores = pd.Series(data=user_movie_scores, index=movie_cf_ids)
+        user_movie_scores = pd.Series(data=user_movie_scores, index=[match[0] for match in query_matches])
 
     else:
 
-        # calculate user-movie scores for the query match movies based on movie popularity
+        # calculate user-movie scores for the query match movies based on movie popularity scaled onto [0, 1]
         user_movie_scores = pd.Series(data=[movie.popularity for movie in query_movies], index=[movie.tmdb_id for movie in query_movies])
         user_movie_scores = (user_movie_scores - user_movie_scores.min()) / (user_movie_scores.max() - user_movie_scores.min())
 
