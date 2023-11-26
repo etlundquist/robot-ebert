@@ -1,15 +1,13 @@
 numpy
 pandas
-pyspark
 requests
 pydantic
 python-dotenv
 scikit-learn
+uvicorn
 fastapi
 passlib[bcrypt]
 sqlalchemy
-duckdb
-duckdb-engine
 cloud-sql-python-connector[pg8000]
 openai
 chromadb
