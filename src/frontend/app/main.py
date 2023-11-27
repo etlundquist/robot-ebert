@@ -310,7 +310,7 @@ def render_search():
 
     # define a text input box which will execute the search via callback function when the user hits enter
     search_query_label = "What do you want to watch?"
-    search_query_help = "Describe the type of movie you'd like to watch: genres, keywords, directors/actors, plot, etc."
+    search_query_help = "Describe the type of movie you'd like to watch: genres, keywords, directors/actors, plot description, etc."
     st.text_input(key="search_query", on_change=callback_search_query, label=search_query_label, help=search_query_help)
     st.divider()
 
@@ -332,7 +332,7 @@ def render_ratings():
     # process the manual update logic via form submission
     with col_manual:
         st.markdown("#### Add or Update Movie Ratings Manually")
-        st.info("Use the editable table below to add movie ratings manually and then hit the button to save your updated movie ratings")
+        st.info("Use the table below to add movie ratings and then hit the button to save the updated ratings")
         with st.form(key="update_manual_ratings", clear_on_submit=False):
             submit = st.form_submit_button("Save Updated Movie Ratings", use_container_width=True)
             manual_ratings_config = {"tmdb_id": st.column_config.TextColumn(required=True), "rating": st.column_config.NumberColumn(required=True, min_value=1.0, max_value=5.0, step=0.5)}
@@ -343,7 +343,7 @@ def render_ratings():
     # process the import update logic via form submission
     with col_import:
         st.markdown("#### Add or Update Movie Ratings from TMDB")
-        st.info("Authenticate your TMDB account and then hit the button to import your current TMDB movie ratings")
+        st.info("Authenticate with TMDB and then hit the button to import your TMDB movie ratings")
         with st.form(key="update_import_ratings", clear_on_submit=False):
             submit = st.form_submit_button("Import TMDB Movie Ratings", use_container_width=True)
             if submit:
@@ -368,7 +368,7 @@ def render_recommendations():
     """render the contents of the [recommendations] tab"""
 
     user_recommendations = get_user_recommendations(st.session_state["user_id"])
-    st.markdown("### Top Overall Recommended Movies")
+    st.markdown("### Recommended Movies for You")
     st.divider()
     st.dataframe(data=user_recommendations, use_container_width=True, hide_index=True)
 
@@ -376,7 +376,6 @@ def render_recommendations():
 # --------------------------
 
 st.set_page_config(page_title="RobotEbert", page_icon="🤖", layout="wide")
-st.header("RobotEbert", divider=True)
 
 # define custom CSS
 # -----------------

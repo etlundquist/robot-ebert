@@ -36,7 +36,7 @@ service_context = ServiceContext.from_defaults(llm=llm, embed_model=embed_model)
 
 movies_content_vector_store = ChromaVectorStore(chroma_collection=movies_content_collection)
 movies_content_vector_index = VectorStoreIndex.from_vector_store(vector_store=movies_content_vector_store, service_context=service_context)
-movies_content_retriever = movies_content_vector_index.as_retriever(similarity_top_k=SIMILARITY_TOP_K)
+movies_content_retriever = movies_content_vector_index.as_retriever(similarity_top_k=SIMILARITY_TOP_K, verbose=True)
 
 movies_collab_embeddings = movies_collab_collection.get(include=["embeddings"])
 movies_collab_embeddings = DataFrame(data=movies_collab_embeddings["embeddings"], index=movies_collab_embeddings["ids"])

@@ -67,7 +67,8 @@ def get_search_recs(query: str, user_id: Optional[str] = None, k: int = 10) -> L
     """get a list of movie recommendations based on a user's search query embedding"""
 
     # find the best movie matches based on the user's query sorting the result by [tmdb_id]
-    query_matches = sorted(movies_content_retriever.retrieve(query), key=lambda x: x.node_id)
+    scored_nodes = movies_content_retriever.retrieve(query)
+    query_matches = sorted(scored_nodes, key=lambda x: x.node_id)
 
     # create an ordered list of movie IDs and a series of [id, score] pairs from the query matches
     query_match_movies = [match.node_id for match in query_matches]
