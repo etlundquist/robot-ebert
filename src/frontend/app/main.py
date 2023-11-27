@@ -7,10 +7,11 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from typing import List
+from typing import List, Dict
 from dotenv import load_dotenv
 from requests import HTTPError
 from pandas import DataFrame
+from uuid import uuid4
 
 
 sys.path.append(os.path.abspath("."))
@@ -206,7 +207,7 @@ def get_user_recommendations(user_id: str) -> DataFrame:
 # define form submission and callback functions
 # ---------------------------------------------
 
-def submit_signup(fname: str, lname: str, email: str, password: str):
+def submit_signup(fname: str, lname: str, email: str, password: str) -> None:
     """process a signup form submission"""
 
     session = st.session_state["http_session"]
@@ -225,7 +226,7 @@ def submit_signup(fname: str, lname: str, email: str, password: str):
         print(err)
 
 
-def submit_login(email: str, password: str):
+def submit_login(email: str, password: str) -> None:
     """process a login form submission"""
 
     session = st.session_state["http_session"]
@@ -244,7 +245,7 @@ def submit_login(email: str, password: str):
         print(err)
 
 
-def submit_manual_ratings(manual_ratings: DataFrame):
+def submit_manual_ratings(manual_ratings: DataFrame) -> None:
     """save updated manual ratings to the database"""
 
     try:
@@ -258,7 +259,7 @@ def submit_manual_ratings(manual_ratings: DataFrame):
         print(err)
 
 
-def submit_import_ratings():
+def submit_import_ratings() -> None:
     """save updated imported ratings to the database"""
 
     try:
@@ -273,7 +274,7 @@ def submit_import_ratings():
         print(err)
 
 
-def callback_search_query():
+def callback_search_query() -> None:
     """execute a search query and update the session state dataframe of search results"""
 
     search_query = st.session_state["search_query"].strip()
@@ -291,7 +292,7 @@ def callback_search_query():
 # define dynamic layout rendering functions
 # -----------------------------------------
 
-def render_active_tabs():
+def render_active_tabs() -> dict:
     """dynamically render the set of tabs for the main content area based on the session state"""
 
     if st.session_state["user_login"]:
@@ -305,7 +306,7 @@ def render_active_tabs():
     return active_tabs
 
 
-def render_search():
+def render_search() -> None:
     """render the contents of the [search] tab"""
 
     # define a text input box which will execute the search via callback function when the user hits enter
@@ -320,7 +321,7 @@ def render_search():
     st.dataframe(data=search_results, use_container_width=True, hide_index=True, column_config=column_config)
 
 
-def render_ratings():
+def render_ratings() -> None:
     """render the contents of the [ratings] tab"""
 
     # define a container to hold the user's current set of saved movie ratings
@@ -364,7 +365,7 @@ def render_ratings():
             st.dataframe(data=empty_frame, use_container_width=True, hide_index=True)
 
 
-def render_recommendations():
+def render_recommendations() -> None:
     """render the contents of the [recommendations] tab"""
 
     user_recommendations = get_user_recommendations(st.session_state["user_id"])
@@ -397,11 +398,15 @@ st.markdown(custom_css, unsafe_allow_html=True)
 if "backend_url" not in st.session_state:
     st.session_state["backend_url"] = os.environ.get("BACKEND_URL", "http://127.0.0.1:8080")
 
+
+# unique session ID to include as a header in backend API requests
+if 'session_id' not in st.session_state:
+    st.session_state['session_id'] = str(uuid4())
+
 # requests Session object with common headers
 if "http_session" not in st.session_state:
-
+    common_headers = {"accept": "application/json", "session-id": st.session_state['session_id']}
     http_session = requests.Session()
-    common_headers = {"accept": "application/json"}
     http_session.headers.update(common_headers)
     st.session_state["http_session"] = http_session
     st.session_state["backend_headers"] = create_backend_headers()

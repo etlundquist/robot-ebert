@@ -1,14 +1,18 @@
 import numpy as np
 import pandas as pd
 
-from typing import List, Optional
+from typing import List, Dict, Optional
 from sklearn.metrics.pairwise import cosine_similarity
 from sqlalchemy import select
+from llama_index.llms import ChatMessage, MessageRole
 
 from backend.app import database
-from backend.app.constants import engine, openai_client, users_collab_collection, movies_collab_collection, movies_content_retriever, movies_collab_embeddings
+from backend.app.constants import engine, openai_client, users_collab_collection, movies_collab_collection, movies_content_chat_engine, movies_collab_embeddings
 from backend.app.constants import LIKED_MOVIE_SCORE, QUERY_SCORE_WEIGHT
 from shared.models import Movie, Recommendation
+
+
+SESSION_MESSAGE_HISTORY: Dict[str, List[ChatMessage]] = {}
 
 
 def embed_query(query: str) -> List[float]:
@@ -63,12 +67,23 @@ def get_user_recs(user_id: str, k: int = 10) -> List[Recommendation]:
     return sorted(user_recs, key=lambda x: x.score, reverse=True)
 
 
-def get_search_recs(query: str, user_id: Optional[str] = None, k: int = 10) -> List[Recommendation]:
+def get_search_recs(session_id: str, query: str, user_id: Optional[str] = None, k: int = 10) -> List[Recommendation]:
     """get a list of movie recommendations based on a user's search query embedding"""
 
-    # find the best movie matches based on the user's query sorting the result by [tmdb_id]
-    scored_nodes = movies_content_retriever.retrieve(query)
-    query_matches = sorted(scored_nodes, key=lambda x: x.node_id)
+    # get the session-specific chat history
+    chat_history = SESSION_MESSAGE_HISTORY.setdefault(session_id, [])
+    print(f"SESSION_ID={session_id}")
+    print(f"CHAT_HISTORY={chat_history}")
+
+    # send the user query to the chat agent
+    response = movies_content_chat_engine.chat(message=query, chat_history=chat_history)
+    query_matches = sorted(response.source_nodes, key=lambda x: x.node_id)
+
+    # # find the best movie matches based on the user's query sorting the result by [tmdb_id]
+    # query_matches = sorted(movies_content_retriever.retrieve(query), key=lambda x: x.node_id)
+
+    # append the user query to the session-specific message history
+    chat_history.append(ChatMessage(role=MessageRole.USER, content=query))
 
     # create an ordered list of movie IDs and a series of [id, score] pairs from the query matches
     query_match_movies = [match.node_id for match in query_matches]

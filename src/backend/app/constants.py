@@ -11,12 +11,32 @@ from llama_index.llms import OpenAI
 from llama_index.embeddings import OpenAIEmbedding
 from llama_index.vector_stores import ChromaVectorStore
 from llama_index.indices.vector_store import VectorStoreIndex
+from llama_index.llms import ChatMessage, MessageRole
+from llama_index.prompts import PromptTemplate, ChatPromptTemplate, PromptType
 
 from backend.app.database import get_prod_engine
 
 LIKED_MOVIE_SCORE = 3.5
 QUERY_SCORE_WEIGHT = 0.9
 SIMILARITY_TOP_K = 10
+
+CONDENSE_QUESTION_PROMPT = PromptTemplate("""
+You are a movie recommendation search assistant.
+Your goal is to iteratively help the user find relevant movies based on a sequence of user search messages.
+Given the MESSAGE_HISTORY and FOLLOWUP_MESSAGE below, rewrite the follow-up message into a STANDALONE_QUERY that captures all relevant context from the user's sequence of messages.
+Your response should include all relevant search/query terms from the user's message history.
+Only add search/query information that appears in the user's message history
+Your response should be optimized for submission to a semantic search query engine.
+
+MESSAGE_HISTORY:
+{chat_history}
+
+FOLLOWUP_MESSAGE:
+{question}
+
+STANDALONE_QUERY:
+""")
+
 
 load_dotenv()
 
@@ -36,7 +56,17 @@ service_context = ServiceContext.from_defaults(llm=llm, embed_model=embed_model)
 
 movies_content_vector_store = ChromaVectorStore(chroma_collection=movies_content_collection)
 movies_content_vector_index = VectorStoreIndex.from_vector_store(vector_store=movies_content_vector_store, service_context=service_context)
-movies_content_retriever = movies_content_vector_index.as_retriever(similarity_top_k=SIMILARITY_TOP_K, verbose=True)
+
+movies_content_retriever = movies_content_vector_index.as_retriever(
+    similarity_top_k=SIMILARITY_TOP_K,
+    verbose=True
+)
+movies_content_chat_engine = movies_content_vector_index.as_chat_engine(
+    chat_mode="condense_question",
+    condense_question_prompt=CONDENSE_QUESTION_PROMPT,
+    similarity_top_k=SIMILARITY_TOP_K,
+    verbose=True
+)
 
 movies_collab_embeddings = movies_collab_collection.get(include=["embeddings"])
 movies_collab_embeddings = DataFrame(data=movies_collab_embeddings["embeddings"], index=movies_collab_embeddings["ids"])
