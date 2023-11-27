@@ -188,17 +188,20 @@ def format_recommendations(recommendations: List[Recommendation]) -> DataFrame:
 def get_user_recommendations(user_id: str) -> DataFrame:
     """get the user's current set of unconditional recommendations"""
 
-    user_id = "1"
     session = st.session_state["http_session"]
     endpoint = f"{st.session_state['backend_url']}/users/{user_id}/recommendations/"
     headers = st.session_state["backend_headers"]
-    # FIXME: remove hard-coded user_id once better data is available
 
     recommendations_response = session.get(endpoint, headers=headers)
     recommendations_response.raise_for_status()
+    recommendations_payload = recommendations_response.json()
 
-    recommendations = format_recommendations([Recommendation(**item) for item in recommendations_response.json()])
-    return recommendations
+    if recommendations_payload:
+        recommendations = format_recommendations([Recommendation(**item) for item in recommendations_payload])
+        return recommendations
+    else:
+        return DataFrame()
+
 
 # define form submission and callback functions
 # ---------------------------------------------
@@ -248,6 +251,7 @@ def submit_manual_ratings(manual_ratings: DataFrame):
         validate_ratings(ratings=manual_ratings)
         add_user_ratings(user_id=st.session_state["user_id"], ratings=manual_ratings.to_dict(orient="records"))
         get_user_ratings.clear()
+        get_user_recommendations.clear()
         st.success("Updated Ratings Saved!", icon="🎉")
     except (ValueError, HTTPError) as err:
         st.error("Updated Ratings Invalid!", icon="🚨")
@@ -261,6 +265,7 @@ def submit_import_ratings():
         imported_ratings = get_tmdb_user_ratings()
         add_user_ratings(user_id=st.session_state["user_id"], ratings=imported_ratings)
         get_user_ratings.clear()
+        get_user_recommendations.clear()
         st.dataframe(pd.DataFrame(imported_ratings), use_container_width=True, hide_index=True)
         st.success("Imported Ratings Saved!", icon="🎉")
     except (ValueError, HTTPError) as err:

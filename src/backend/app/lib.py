@@ -6,7 +6,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sqlalchemy import select
 
 from backend.app import database
-from backend.app.constants import engine, openai_client, users_collab_collection, movies_collab_collection, movies_content_retriever, QUERY_SCORE_WEIGHT
+from backend.app.constants import engine, openai_client, users_collab_collection, movies_collab_collection, movies_content_retriever, movies_collab_embeddings
+from backend.app.constants import LIKED_MOVIE_SCORE, QUERY_SCORE_WEIGHT
 from shared.models import Movie, Recommendation
 
 
@@ -30,14 +31,32 @@ def get_movies(tmdb_ids: List[str]) -> List[Movie]:
 def get_user_recs(user_id: str, k: int = 10) -> List[Recommendation]:
     """get a list of movie recommendations based on a user's collaborative filtering embedding"""
 
-    # find the best matches based on the user's collaborative filtering embedding
-    user_embedding = users_collab_collection.get(ids=user_id, include=["embeddings"])["embeddings"][0]
-    user_matches = movies_collab_collection.query(query_embeddings=user_embedding, n_results=k, include=["embeddings", "distances"])
-    user_matches = sorted(zip(user_matches["ids"][0], user_matches["distances"][0]), key=lambda x: x[0])
+    # get the user's ratings
+    with engine.begin() as cnx:
+        statement = select(database.ratings).where(database.ratings.c.user_id == user_id)
+        user_ratings = cnx.execute(statement).all()
+        if not user_ratings:
+            return []
+
+    # limit the user's ratings to only movies that appear in the movie embeddings dataframe
+    # FIXME: automatically add new movies to the [movies] table when upserting movie ratings
+    user_ratings = pd.DataFrame(user_ratings)
+    user_ratings = user_ratings[user_ratings["tmdb_id"].isin(movies_collab_embeddings.index)]
+
+    # select the movies the user has liked and those the user has not yet rated
+    liked_movies = user_ratings[user_ratings["rating"] >= LIKED_MOVIE_SCORE]["tmdb_id"]
+    unrated_movies = movies_collab_embeddings.index.difference(user_ratings["tmdb_id"])
+
+    # calculate the average cosine similarity of each candidate movie wrt to the user's liked movies
+    pairwise_similarities = cosine_similarity(movies_collab_embeddings.loc[liked_movies], movies_collab_embeddings)
+    movie_scores = pd.Series(pairwise_similarities.mean(axis=0), index=movies_collab_embeddings.index)
+
+    # select the top-k movies in terms of average cosine similarity that the user has not yet rated
+    recommended_movies = movie_scores.loc[unrated_movies].sort_values(ascending=False)[:k].sort_index()
 
     # get sorted lists of [movies, scores] by tmdb_id
-    movies = get_movies(tmdb_ids=[match[0] for match in user_matches])
-    scores = [1.0 - match[1] for match in user_matches]
+    movies = get_movies(tmdb_ids=recommended_movies.index.values.tolist())
+    scores = recommended_movies.values.tolist()
 
     # convert the [movie, score] pairs into recommendation objects and return sorted by descending score
     user_recs = [Recommendation(movie=movie, score=score) for movie, score in zip(movies, scores)]

@@ -4,6 +4,7 @@ import chromadb
 
 from dotenv import load_dotenv
 from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
+from pandas import DataFrame
 
 from llama_index import ServiceContext
 from llama_index.llms import OpenAI
@@ -13,7 +14,7 @@ from llama_index.indices.vector_store import VectorStoreIndex
 
 from backend.app.database import get_prod_engine
 
-
+LIKED_MOVIE_SCORE = 3.5
 QUERY_SCORE_WEIGHT = 0.9
 SIMILARITY_TOP_K = 10
 
@@ -36,3 +37,6 @@ service_context = ServiceContext.from_defaults(llm=llm, embed_model=embed_model)
 movies_content_vector_store = ChromaVectorStore(chroma_collection=movies_content_collection)
 movies_content_vector_index = VectorStoreIndex.from_vector_store(vector_store=movies_content_vector_store, service_context=service_context)
 movies_content_retriever = movies_content_vector_index.as_retriever(similarity_top_k=SIMILARITY_TOP_K)
+
+movies_collab_embeddings = movies_collab_collection.get(include=["embeddings"])
+movies_collab_embeddings = DataFrame(data=movies_collab_embeddings["embeddings"], index=movies_collab_embeddings["ids"])
