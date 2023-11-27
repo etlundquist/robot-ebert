@@ -4,6 +4,10 @@ A Conversational Movie Recommendation App
 
 ![robot-ebert](./images/robot-ebert.png)
 
+## Access the Hosted (GCP Cloud Run) Streamlit Front-End Application
+
+[Robot Ebert](https://robot-ebert-streamlit-4diyefjzaq-uw.a.run.app/)
+
 ## Run the Application Locally
 
 ### Run the FastAPI Backend (Reload on Save)
