@@ -1,6 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field
+
+from llama_index.llms import ChatMessage, MessageRole
 
 
 class AddUserRequest(BaseModel):
@@ -33,7 +35,7 @@ class Movie(BaseModel):
     tmdb_homepage: str
     title: str
     language: str
-    release_date: datetime
+    release_date: date
     runtime: int
     director: str
     actors: Optional[List[str]]
@@ -45,7 +47,6 @@ class Movie(BaseModel):
     popularity: float
     vote_average: float
     vote_count: int
-
 
 
 class Rating(BaseModel):
@@ -69,12 +70,15 @@ class AddRatingsResponse(BaseModel):
     cnt_updated: int
 
 
-class SearchRequest(BaseModel):
-    query: str = Field(..., max_length=500)
-    user_id: Optional[str] = None
-    k: int = 10
-
-
 class Recommendation(BaseModel):
     movie: Movie
     score: float
+
+class SearchRequest(BaseModel):
+    chat_messages: List[ChatMessage]
+    user_id: Optional[str] = None
+    k: Optional[int] = 10
+
+class SearchResponse(BaseModel):
+    message: str
+    recommendations: List[Recommendation]

@@ -12,30 +12,13 @@ from llama_index.embeddings import OpenAIEmbedding
 from llama_index.vector_stores import ChromaVectorStore
 from llama_index.indices.vector_store import VectorStoreIndex
 from llama_index.llms import ChatMessage, MessageRole
-from llama_index.prompts import PromptTemplate, ChatPromptTemplate, PromptType
 
 from backend.app.database import get_prod_engine
+from backend.app.prompts import CONDENSE_QUESTION_PROMPT
 
 LIKED_MOVIE_SCORE = 3.5
-QUERY_SCORE_WEIGHT = 0.9
+QUERY_SCORE_WEIGHT = 0.90
 SIMILARITY_TOP_K = 10
-
-CONDENSE_QUESTION_PROMPT = PromptTemplate("""
-You are a movie recommendation search assistant.
-Your goal is to iteratively help the user find relevant movies based on a sequence of user search messages.
-Given the MESSAGE_HISTORY and FOLLOWUP_MESSAGE below, rewrite the follow-up message into a STANDALONE_QUERY that captures all relevant context from the user's sequence of messages.
-Your response should include all relevant search/query terms from the user's message history.
-Only add search/query information that appears in the user's message history
-Your response should be optimized for submission to a semantic search query engine.
-
-MESSAGE_HISTORY:
-{chat_history}
-
-FOLLOWUP_MESSAGE:
-{question}
-
-STANDALONE_QUERY:
-""")
 
 
 load_dotenv()
