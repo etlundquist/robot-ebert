@@ -14,10 +14,10 @@ from llama_index.indices.vector_store import VectorStoreIndex
 from llama_index.llms import ChatMessage, MessageRole
 
 from backend.app.database import get_prod_engine
-from backend.app.prompts import CONDENSE_QUESTION_PROMPT
+from backend.app.prompts import CONDENSE_QUESTION_PROMPT, TEXT_QA_PROMPT
 
 LIKED_MOVIE_SCORE = 3.5
-QUERY_SCORE_WEIGHT = 0.90
+QUERY_SCORE_WEIGHT = 0.95
 SIMILARITY_TOP_K = 10
 
 
@@ -47,6 +47,7 @@ movies_content_retriever = movies_content_vector_index.as_retriever(
 movies_content_chat_engine = movies_content_vector_index.as_chat_engine(
     chat_mode="condense_question",
     condense_question_prompt=CONDENSE_QUESTION_PROMPT,
+    text_qa_template=TEXT_QA_PROMPT,
     similarity_top_k=SIMILARITY_TOP_K,
     verbose=True
 )

@@ -79,6 +79,7 @@ def run_search(chat_messages: List[ChatMessage], user_id: Optional[str] = None, 
     source_nodes = sorted(chat_response.source_nodes, key=lambda x: x.node_id)
 
     print(f"\nNEW ASSISTANT MESSAGE: {chat_response.response}")
+    print(f"\nSOURCE NODES: {source_nodes}")
 
     # # find the best movie matches based on the user's query sorting the result by [tmdb_id]
     # source_nodes = sorted(movies_content_retriever.retrieve(query), key=lambda x: x.node_id)
