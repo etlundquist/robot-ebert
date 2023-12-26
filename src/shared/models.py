@@ -58,7 +58,7 @@ class DisplayRating(BaseModel):
     tmdb_id: str
     tmdb_homepage: str
     title: str
-    release_date: datetime
+    release_date: date
     rating: float
 
 class AddRatingRequest(BaseModel):

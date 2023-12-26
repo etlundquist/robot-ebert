@@ -33,7 +33,7 @@ movies_content_collection = chroma_client.get_collection(name="movies-content", 
 users_collab_collection = chroma_client.get_collection(name="users-collab", embedding_function=embedding_function)
 movies_collab_collection = chroma_client.get_collection(name="movies-collab", embedding_function=embedding_function)
 
-llm = OpenAI(model="gpt-4-1106-preview", temperature=0.1, max_tokens=1000, api_key=os.environ["OPENAI_API_KEY"])
+llm = OpenAI(model="gpt-4-1106-preview", temperature=0.1, max_tokens=256, api_key=os.environ["OPENAI_API_KEY"])
 embed_model = OpenAIEmbedding(model="text-embedding-ada-002", api_key=os.environ["OPENAI_API_KEY"])
 service_context = ServiceContext.from_defaults(llm=llm, embed_model=embed_model)
 

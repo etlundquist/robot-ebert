@@ -71,15 +71,13 @@ def run_search(chat_messages: List[ChatMessage], user_id: Optional[str] = None, 
     message = chat_messages[-1].content
     chat_history = chat_messages[:-1]
 
-    print(f"\nNEW USER MESSAGE: {message}")
-    print(f"\nCHAT HISTORY: {chat_history}")
-
     # send the user query to the chat agent for processing
     chat_response = movies_content_chat_engine.chat(message=message, chat_history=chat_history)
     source_nodes = sorted(chat_response.source_nodes, key=lambda x: x.node_id)
 
+    print(f"\nNEW USER MESSAGE: {message}")
+    print(f"\nCHAT HISTORY: {chat_history}")
     print(f"\nNEW ASSISTANT MESSAGE: {chat_response.response}")
-    print(f"\nSOURCE NODES: {source_nodes}")
 
     # # find the best movie matches based on the user's query sorting the result by [tmdb_id]
     # source_nodes = sorted(movies_content_retriever.retrieve(query), key=lambda x: x.node_id)

@@ -317,6 +317,8 @@ def callback_clear_search() -> None:
     """clear the conversation history to reset search"""
 
     st.session_state["chat_messages"] = [ChatMessage(role=MessageRole.SYSTEM, content="You are a helpful movie recommendation assistant")]
+    st.session_state["search_recommendations"] = pd.DataFrame(columns=st.session_state["recommendation_columns"])
+
 
 # define dynamic layout rendering functions
 # -----------------------------------------
@@ -445,7 +447,7 @@ if "user_login" not in st.session_state:
 
 # chat message history
 if "chat_messages" not in st.session_state:
-    st.session_state["chat_messages"]: List[ChatMessage] = []
+    st.session_state["chat_messages"] = [ChatMessage(role=MessageRole.SYSTEM, content="You are a helpful movie recommendation assistant")]
 
 # placeholder dataframe for search results
 if "search_recommendations" not in st.session_state:
