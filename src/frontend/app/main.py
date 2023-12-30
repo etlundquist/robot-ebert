@@ -7,14 +7,16 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from typing import List
+from typing import List, Dict
 from dotenv import load_dotenv
 from requests import HTTPError
 from pandas import DataFrame
+from uuid import uuid4
+from llama_index.llms import ChatMessage, MessageRole
 
 
 sys.path.append(os.path.abspath("."))
-from shared.models import Movie, Recommendation
+from shared.models import Movie, Recommendation, SearchRequest, SearchResponse
 # NOTE: hack to fix relative imports for "streamlit run frontend/app/main.py"
 
 
@@ -178,7 +180,7 @@ def add_user_ratings(user_id: str, ratings: List[dict]) -> None:
 def format_recommendations(recommendations: List[Recommendation]) -> DataFrame:
     """convert the returned set of recommendations into a DataFrame for display"""
 
-    recs_df = pd.DataFrame([rec.movie.model_dump() for rec in recommendations])
+    recs_df = pd.DataFrame([rec.movie.dict() for rec in recommendations])
     recs_df["score"] = [rec.score for rec in recommendations]
     recs_df = recs_df.sort_values("score", ascending=False).reset_index().rename(columns={"index": "rank"})
     return recs_df[st.session_state["recommendation_columns"]]
@@ -203,10 +205,25 @@ def get_user_recommendations(user_id: str) -> DataFrame:
         return DataFrame()
 
 
+def render_chat_history(messages: List[ChatMessage]) -> None:
+    """render the chat history as a series of streamlit st.chat_message() elements"""
+
+    for message in messages[-1:]:
+        if message.role == MessageRole.USER and message.content:
+            chat_message = st.chat_message("human")
+            escaped_message_content = message.content.replace("$", "\$").strip()
+            chat_message.markdown(escaped_message_content)
+        elif message.role == MessageRole.ASSISTANT and message.content:
+            chat_message = st.chat_message("ai")
+            escaped_message_content = message.content.replace("$", "\$").strip()
+            chat_message.markdown(escaped_message_content)
+        else:
+            pass
+
 # define form submission and callback functions
 # ---------------------------------------------
 
-def submit_signup(fname: str, lname: str, email: str, password: str):
+def submit_signup(fname: str, lname: str, email: str, password: str) -> None:
     """process a signup form submission"""
 
     session = st.session_state["http_session"]
@@ -225,7 +242,7 @@ def submit_signup(fname: str, lname: str, email: str, password: str):
         print(err)
 
 
-def submit_login(email: str, password: str):
+def submit_login(email: str, password: str) -> None:
     """process a login form submission"""
 
     session = st.session_state["http_session"]
@@ -244,7 +261,7 @@ def submit_login(email: str, password: str):
         print(err)
 
 
-def submit_manual_ratings(manual_ratings: DataFrame):
+def submit_manual_ratings(manual_ratings: DataFrame) -> None:
     """save updated manual ratings to the database"""
 
     try:
@@ -258,7 +275,7 @@ def submit_manual_ratings(manual_ratings: DataFrame):
         print(err)
 
 
-def submit_import_ratings():
+def submit_import_ratings() -> None:
     """save updated imported ratings to the database"""
 
     try:
@@ -273,25 +290,40 @@ def submit_import_ratings():
         print(err)
 
 
-def callback_search_query():
+def callback_search() -> None:
     """execute a search query and update the session state dataframe of search results"""
 
-    search_query = st.session_state["search_query"].strip()
+    search_message = ChatMessage(role=MessageRole.USER, content=st.session_state["search_message"].strip())
+    st.session_state["chat_messages"].append(search_message)
+    user_id = st.session_state.get("user_id")
+
     session = st.session_state["http_session"]
     endpoint = f"{st.session_state['backend_url']}/search/"
     headers = st.session_state["backend_headers"]
-    payload = {"query": search_query}
+    payload = SearchRequest(chat_messages=st.session_state["chat_messages"])
 
-    search_response = session.post(endpoint, json=payload, headers=headers)
+    search_response = session.post(endpoint, json=payload.dict(), headers=headers)
     search_response.raise_for_status()
+    search_response = SearchResponse(**search_response.json())
 
-    search_results = format_recommendations([Recommendation(**item) for item in search_response.json()])
-    st.session_state["search_results"] = search_results
+    response_message = ChatMessage(role=MessageRole.ASSISTANT, content=search_response.message)
+    st.session_state["chat_messages"].append(response_message)
+
+    search_recommendations = format_recommendations(search_response.recommendations)
+    st.session_state["search_recommendations"] = search_recommendations
+
+
+def callback_clear_search() -> None:
+    """clear the conversation history to reset search"""
+
+    st.session_state["chat_messages"] = [ChatMessage(role=MessageRole.SYSTEM, content="You are a helpful movie recommendation assistant")]
+    st.session_state["search_recommendations"] = pd.DataFrame(columns=st.session_state["recommendation_columns"])
+
 
 # define dynamic layout rendering functions
 # -----------------------------------------
 
-def render_active_tabs():
+def render_active_tabs() -> dict:
     """dynamically render the set of tabs for the main content area based on the session state"""
 
     if st.session_state["user_login"]:
@@ -305,22 +337,25 @@ def render_active_tabs():
     return active_tabs
 
 
-def render_search():
+def render_search() -> None:
     """render the contents of the [search] tab"""
 
-    # define a text input box which will execute the search via callback function when the user hits enter
-    search_query_label = "What do you want to watch?"
-    search_query_help = "Describe the type of movie you'd like to watch: genres, keywords, directors/actors, plot description, etc."
-    st.text_input(key="search_query", on_change=callback_search_query, label=search_query_label, help=search_query_help)
-    st.divider()
+    # text input box which will execute the search via callback function when the user hits enter
+    search_message_label = "What do you want to watch?"
+    search_message_help = "Describe the type of movie you'd like to watch: genres, keywords, directors/actors, plot description, etc."
+    st.text_input(key="search_message", on_change=callback_search, label=search_message_label, help=search_message_help)
 
-    # retrieve the search_results dataframe updated by the callback function and format for display
-    search_results = st.session_state["search_results"]
+    # chat message history displaying the user/assistant message log
+    # FIXME: upgrade streamlit to 1.30 to create a container for the message history and set a fixed height
+    render_chat_history(messages=st.session_state["chat_messages"])
+
+    # search_recommendations dataframe updated by the callback function and format for display
+    search_recommendations = st.session_state["search_recommendations"]
     column_config = {"tmdb_homepage": st.column_config.LinkColumn()}
-    st.dataframe(data=search_results, use_container_width=True, hide_index=True, column_config=column_config)
+    st.dataframe(data=search_recommendations, use_container_width=True, hide_index=True, column_config=column_config)
 
 
-def render_ratings():
+def render_ratings() -> None:
     """render the contents of the [ratings] tab"""
 
     # define a container to hold the user's current set of saved movie ratings
@@ -364,7 +399,7 @@ def render_ratings():
             st.dataframe(data=empty_frame, use_container_width=True, hide_index=True)
 
 
-def render_recommendations():
+def render_recommendations() -> None:
     """render the contents of the [recommendations] tab"""
 
     user_recommendations = get_user_recommendations(st.session_state["user_id"])
@@ -399,9 +434,8 @@ if "backend_url" not in st.session_state:
 
 # requests Session object with common headers
 if "http_session" not in st.session_state:
-
-    http_session = requests.Session()
     common_headers = {"accept": "application/json"}
+    http_session = requests.Session()
     http_session.headers.update(common_headers)
     st.session_state["http_session"] = http_session
     st.session_state["backend_headers"] = create_backend_headers()
@@ -411,11 +445,15 @@ if "http_session" not in st.session_state:
 if "user_login" not in st.session_state:
     st.session_state["user_login"] = False
 
+# chat message history
+if "chat_messages" not in st.session_state:
+    st.session_state["chat_messages"] = [ChatMessage(role=MessageRole.SYSTEM, content="You are a helpful movie recommendation assistant")]
+
 # placeholder dataframe for search results
-if "search_results" not in st.session_state:
-    recommendation_columns = ["rank", "score"] + list(Movie.model_fields.keys())
+if "search_recommendations" not in st.session_state:
+    recommendation_columns = ["rank", "score"] + list(Movie.__fields__.keys())
     st.session_state["recommendation_columns"] = recommendation_columns
-    st.session_state["search_results"] = pd.DataFrame(columns=recommendation_columns)
+    st.session_state["search_recommendations"] = pd.DataFrame(columns=recommendation_columns)
 
 # request token to generate TMDB user sessions
 if "request_token" not in st.session_state:
@@ -455,6 +493,10 @@ with st.sidebar:
     tmdb_auth_url = f"https://www.themoviedb.org/authenticate/{st.session_state['request_token']}"
     tmdb_auth_help = "authenticate with TMDB to import movie ratings"
     st.link_button("Authenticate Your TMDB Account", url=tmdb_auth_url, help=tmdb_auth_help, use_container_width=True)
+
+    # clear search history button: clear the search conversation history
+    st.button(label="Clear Search History", on_click=callback_clear_search, use_container_width=True)
+
 
 # render a dynamic tabset for the main content area
 # -------------------------------------------------

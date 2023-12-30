@@ -1,14 +1,15 @@
 import numpy as np
 import pandas as pd
 
-from typing import List, Optional
+from typing import List, Dict, Tuple, Optional
 from sklearn.metrics.pairwise import cosine_similarity
 from sqlalchemy import select
+from llama_index.llms import ChatMessage, MessageRole
 
 from backend.app import database
-from backend.app.constants import engine, openai_client, users_collab_collection, movies_collab_collection, movies_content_retriever, movies_collab_embeddings
+from backend.app.constants import engine, openai_client, users_collab_collection, movies_collab_collection, movies_content_chat_engine, movies_collab_embeddings
 from backend.app.constants import LIKED_MOVIE_SCORE, QUERY_SCORE_WEIGHT
-from shared.models import Movie, Recommendation
+from shared.models import Movie, Recommendation, SearchResponse
 
 
 def embed_query(query: str) -> List[float]:
@@ -59,20 +60,31 @@ def get_user_recs(user_id: str, k: int = 10) -> List[Recommendation]:
     scores = recommended_movies.values.tolist()
 
     # convert the [movie, score] pairs into recommendation objects and return sorted by descending score
-    user_recs = [Recommendation(movie=movie, score=score) for movie, score in zip(movies, scores)]
-    return sorted(user_recs, key=lambda x: x.score, reverse=True)
+    recommendations = [Recommendation(movie=movie, score=score) for movie, score in zip(movies, scores)]
+    return sorted(recommendations, key=lambda x: x.score, reverse=True)
 
 
-def get_search_recs(query: str, user_id: Optional[str] = None, k: int = 10) -> List[Recommendation]:
+def run_search(chat_messages: List[ChatMessage], user_id: Optional[str] = None, k: int = 10) -> SearchResponse:
     """get a list of movie recommendations based on a user's search query embedding"""
 
-    # find the best movie matches based on the user's query sorting the result by [tmdb_id]
-    scored_nodes = movies_content_retriever.retrieve(query)
-    query_matches = sorted(scored_nodes, key=lambda x: x.node_id)
+    # separate the user's most recent message from the previous chat history
+    message = chat_messages[-1].content
+    chat_history = chat_messages[:-1]
+
+    # send the user query to the chat agent for processing
+    chat_response = movies_content_chat_engine.chat(message=message, chat_history=chat_history)
+    source_nodes = sorted(chat_response.source_nodes, key=lambda x: x.node_id)
+
+    print(f"\nNEW USER MESSAGE: {message}")
+    print(f"\nCHAT HISTORY: {chat_history}")
+    print(f"\nNEW ASSISTANT MESSAGE: {chat_response.response}")
+
+    # # find the best movie matches based on the user's query sorting the result by [tmdb_id]
+    # source_nodes = sorted(movies_content_retriever.retrieve(query), key=lambda x: x.node_id)
 
     # create an ordered list of movie IDs and a series of [id, score] pairs from the query matches
-    query_match_movies = [match.node_id for match in query_matches]
-    query_movie_scores = pd.Series(data=[match.score for match in query_matches], index=query_match_movies)
+    query_match_movies = [match.node_id for match in source_nodes]
+    query_movie_scores = pd.Series(data=[match.score for match in source_nodes], index=query_match_movies)
 
     # get list of movies and a series of scores based on the query matches sorting the result by [tmdb_id]
     query_movies = get_movies(tmdb_ids=query_match_movies)
@@ -97,6 +109,10 @@ def get_search_recs(query: str, user_id: Optional[str] = None, k: int = 10) -> L
     # re-rank the movie scores using a weighed average of the [query_movie] and [user_movie] scores sorting the result by [tmdb_id]
     combined_movie_scores = (QUERY_SCORE_WEIGHT * query_movie_scores + (1 - QUERY_SCORE_WEIGHT) * user_movie_scores).sort_index()
 
-    # convert the [movie, score] pairs into recommendation objects and return sorted by descending score
-    search_recs = [Recommendation(movie=movie, score=score) for movie, score in zip(query_movies, combined_movie_scores)]
-    return sorted(search_recs, key=lambda x: x.score, reverse=True)
+    # convert the [movie, score] pairs into recommendation objects and sort by score descending
+    recommendations = [Recommendation(movie=movie, score=score) for movie, score in zip(query_movies, combined_movie_scores)]
+    recommendations = sorted(recommendations, key=lambda x: x.score, reverse=True)
+
+    # return the text response message as well as the formatted list of recommendations
+    search_response = SearchResponse(message=chat_response.response, recommendations=recommendations)
+    return search_response

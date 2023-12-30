@@ -1,16 +1,17 @@
-from fastapi import APIRouter
-from typing import List
+from fastapi import APIRouter, Request
+from typing import List, Tuple
+from uuid import uuid4
 
-from shared.models import SearchRequest, Recommendation
-from backend.app.lib import get_search_recs
+from shared.models import SearchRequest, SearchResponse
+from backend.app.lib import run_search
 
 
 router = APIRouter()
 
 
 @router.post("/search/")
-def search(request: SearchRequest) -> List[Recommendation]:
+def search(search_request: SearchRequest) -> SearchResponse:
     """search for movies using a natural language query"""
 
-    search_recommendations = get_search_recs(query=request.query, user_id=request.user_id, k=request.k)
-    return search_recommendations
+    search_response = run_search(chat_messages=search_request.chat_messages, user_id=search_request.user_id)
+    return search_response
