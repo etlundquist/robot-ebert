@@ -64,7 +64,7 @@ movies = Table(
     Column("tmdb_homepage", Text),
     Column("title", Text),
     Column("language", Text),
-    Column("release_date", Text),
+    Column("release_date", Date),
     Column("runtime", Integer),
     Column("director", Text),
     Column("actors", ARRAY(Text)),

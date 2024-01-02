@@ -17,7 +17,7 @@ from backend.app.database import get_prod_engine
 from backend.app.prompts import CONDENSE_QUESTION_PROMPT, TEXT_QA_PROMPT
 
 LIKED_MOVIE_SCORE = 3.5
-QUERY_SCORE_WEIGHT = 0.95
+QUERY_SCORE_WEIGHT = 0.90
 SIMILARITY_TOP_K = 10
 
 

@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import json
 import requests
 
 import numpy as np
@@ -48,7 +49,7 @@ def create_tmdb_headers() -> dict:
     return headers
 
 
-def get_movie(tmdb_id: str) -> dict:
+def get_movie(tmdb_id: str) -> Movie:
     """get movie details by ID from the application database"""
 
     session = st.session_state["http_session"]
@@ -57,19 +58,64 @@ def get_movie(tmdb_id: str) -> dict:
 
     response = session.get(endpoint, headers=headers)
     response.raise_for_status()
-    return response.json()
+
+    movie = Movie(**response.json())
+    return movie
 
 
-def get_movie_tmdb(tmdb_id: str) -> dict:
-    """get movie details by ID from the TMDB API"""
+def add_movie(tmdb_id: str) -> None:
+    """get all required movie info from TMDB and insert it into the database"""
+
+    details_endpoint = f"https://api.themoviedb.org/3/movie/{tmdb_id}"
+    credits_endpoint = f"https://api.themoviedb.org/3/movie/{tmdb_id}/credits"
+    keywords_endpoint = f"https://api.themoviedb.org/3/movie/{tmdb_id}/keywords"
 
     session = st.session_state["http_session"]
-    endpoint = f"https://api.themoviedb.org/3/movie/{tmdb_id}"
     headers = st.session_state["tmdb_headers"]
 
-    response = session.get(endpoint, headers=headers)
+    # fetch movie details
+    response = session.get(details_endpoint, headers=headers)
     response.raise_for_status()
-    return response.json()
+    response_body = response.json()
+    movie_details = {
+        "tmdb_id": str(tmdb_id),
+        "tmdb_homepage": f"https://www.themoviedb.org/movie/{tmdb_id}",
+        "title": response_body["title"],
+        "language": response_body["original_language"],
+        "release_date": response_body["release_date"],
+        "runtime": response_body["runtime"],
+        "overview": response_body["overview"],
+        "genres": [genre["name"] for genre in response_body["genres"]],
+        "budget": response_body["budget"],
+        "revenue": response_body["revenue"],
+        "popularity": response_body["popularity"],
+        "vote_average": response_body["vote_average"],
+        "vote_count": response_body["vote_count"]
+    }
+
+    response = session.get(credits_endpoint, headers=headers)
+    response.raise_for_status()
+    response_body = response.json()
+    director = [item for item in response_body["crew"] if item["job"] == "Director"]
+    top_cast = sorted(response_body["cast"], key=lambda x: x["order"])[:5]
+    movie_credits = {
+        "director": director[0]["name"] if len(director) >= 1 else "",
+        "actors": [actor["name"] for actor in top_cast]
+    }
+
+    response = session.get(keywords_endpoint, headers=headers)
+    response.raise_for_status()
+    response_body = response.json()
+    movie_keywords = {
+        "keywords": [item["name"] for item in response_body["keywords"]]
+    }
+
+    movie = Movie(**movie_details, **movie_credits, **movie_keywords)
+    endpoint = f"{st.session_state['backend_url']}/movies/"
+    headers = st.session_state["backend_headers"]
+
+    response = session.post(endpoint, json=json.loads(movie.json()), headers=headers)
+    response.raise_for_status()
 
 
 def get_request_token() -> str:
@@ -107,7 +153,7 @@ def get_or_create_tmdb_session() -> str:
             raise err
 
 
-def get_tmdb_user_ratings() -> List[dict]:
+def get_tmdb_user_ratings() -> List[Dict]:
     """fetch user ratings from TMDB with a new user session"""
 
     # extract HTTP session and set common headers
@@ -135,20 +181,24 @@ def get_tmdb_user_ratings() -> List[dict]:
     return ratings
 
 
-def validate_ratings(ratings: DataFrame) -> None:
+def validate_ratings(ratings: List[Dict]) -> None:
     """validate a DataFrame of [tmdb_id, rating] ratings"""
 
     error_template = "rating with tmdb_id={tmdb_id} rating={rating} is invalid"
-    for rating in ratings.itertuples():
-        error_message = error_template.format(tmdb_id=rating.tmdb_id, rating=rating.rating)
+    for rating in ratings:
+        error_message = error_template.format(tmdb_id=rating["tmdb_id"], rating=rating["rating"])
         try:
-            get_movie_tmdb(tmdb_id=rating.tmdb_id)
-        except HTTPError:
-            st.error(error_message)
-            raise ValueError(error_message)
-        if (rating.rating is None) or (rating.rating < 1.0) or (rating.rating > 5.0):
-            st.error(error_message)
-            raise ValueError(error_message)
+            get_movie(tmdb_id=rating["tmdb_id"])
+        except Exception as err:
+            try:
+                print(f"adding new movie={rating['tmdb_id']} to the database")
+                add_movie(tmdb_id=rating["tmdb_id"])
+            except HTTPError as err:
+                st.error(error_message)
+                raise ValueError(err)
+            if (rating["rating"] is None) or (rating["rating"] < 1.0) or (rating["rating"] > 5.0):
+                st.error(error_message)
+                raise ValueError(error_message)
 
 
 @st.cache_data
@@ -261,12 +311,12 @@ def submit_login(email: str, password: str) -> None:
         print(err)
 
 
-def submit_manual_ratings(manual_ratings: DataFrame) -> None:
+def submit_manual_ratings(manual_ratings: List[Dict]) -> None:
     """save updated manual ratings to the database"""
 
     try:
         validate_ratings(ratings=manual_ratings)
-        add_user_ratings(user_id=st.session_state["user_id"], ratings=manual_ratings.to_dict(orient="records"))
+        add_user_ratings(user_id=st.session_state["user_id"], ratings=manual_ratings)
         get_user_ratings.clear()
         get_user_recommendations.clear()
         st.success("Updated Ratings Saved!", icon="🎉")
@@ -280,6 +330,7 @@ def submit_import_ratings() -> None:
 
     try:
         imported_ratings = get_tmdb_user_ratings()
+        validate_ratings(ratings=imported_ratings)
         add_user_ratings(user_id=st.session_state["user_id"], ratings=imported_ratings)
         get_user_ratings.clear()
         get_user_recommendations.clear()
@@ -300,7 +351,11 @@ def callback_search() -> None:
     session = st.session_state["http_session"]
     endpoint = f"{st.session_state['backend_url']}/search/"
     headers = st.session_state["backend_headers"]
-    payload = SearchRequest(chat_messages=st.session_state["chat_messages"])
+
+    if user_id:
+        payload = SearchRequest(chat_messages=st.session_state["chat_messages"], user_id=user_id)
+    else:
+        payload = SearchRequest(chat_messages=st.session_state["chat_messages"])
 
     search_response = session.post(endpoint, json=payload.dict(), headers=headers)
     search_response.raise_for_status()
@@ -373,7 +428,7 @@ def render_ratings() -> None:
             manual_ratings_config = {"tmdb_id": st.column_config.TextColumn(required=True), "rating": st.column_config.NumberColumn(required=True, min_value=1.0, max_value=5.0, step=0.5)}
             manual_ratings = st.data_editor(pd.DataFrame(columns=["tmdb_id", "rating"]), use_container_width=True, hide_index=True, column_config=manual_ratings_config, num_rows="dynamic")
             if submit:
-                submit_manual_ratings(manual_ratings)
+                submit_manual_ratings(manual_ratings.to_dict(orient="records"))
 
     # process the import update logic via form submission
     with col_import:

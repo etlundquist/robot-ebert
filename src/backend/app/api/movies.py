@@ -1,6 +1,7 @@
 from datetime import datetime
 from fastapi import APIRouter
 from sqlalchemy import insert, select, update, delete
+from sqlalchemy.exc import NoResultFound
 
 from backend.app import database
 from backend.app.constants import engine
@@ -19,7 +20,7 @@ def create_movie(movie: Movie) -> str:
             database.movies
         ).values(
             updated_at=datetime.now(),
-            **movie.model_dump()
+            **movie.dict()
         )
         cnx.execute(statement)
         return movie.tmdb_id
@@ -43,7 +44,7 @@ def get_movie(tmdb_id: str) -> Movie:
 def update_movie(tmdb_id: str, movie: Movie) -> None:
     """update an existing movie by ID"""
 
-    movie_data = movie.model_dump()
+    movie_data = movie.dict()
     del movie_data["tmdb_id"]
 
     with engine.begin() as cnx:

@@ -74,7 +74,7 @@ def update_user(user_id: str, user_request: UpdateUserRequest) -> None:
             database.users.c.user_id == user_id
         ).values(
             updated_at=datetime.now(),
-            **user_request.model_dump()
+            **user_request.dict()
         )
         cnx.execute(statement)
 

@@ -40,7 +40,6 @@ def get_user_recs(user_id: str, k: int = 10) -> List[Recommendation]:
             return []
 
     # limit the user's ratings to only movies that appear in the movie embeddings dataframe
-    # FIXME: automatically add new movies to the [movies] table when upserting movie ratings
     user_ratings = pd.DataFrame(user_ratings)
     user_ratings = user_ratings[user_ratings["tmdb_id"].isin(movies_collab_embeddings.index)]
 
@@ -91,13 +90,21 @@ def run_search(chat_messages: List[ChatMessage], user_id: Optional[str] = None, 
 
     if user_id:
 
-        # get the user's CF embedding and the CF embeddings for the query match movies sorted by tmdb_id
-        user_cf_embedding = users_collab_collection.get(ids=user_id, include=["embeddings"])["embeddings"][0]
-        movie_cf_embeddings = movies_collab_collection.get(ids=query_match_movies, include=["embeddings"])["embeddings"]
+        # get the user's current set of liked movies
+        with engine.begin() as cnx:
+            statement = select(database.ratings).where(database.ratings.c.user_id == user_id)
+            user_ratings = pd.DataFrame(cnx.execute(statement).all())
+            user_ratings = user_ratings[user_ratings["tmdb_id"].isin(movies_collab_embeddings.index)]
+            liked_movies = user_ratings[user_ratings["rating"] >= LIKED_MOVIE_SCORE]["tmdb_id"].to_list()
 
-        # calculate user-movie scores for the query match movies based on user-movie CF embedding cosine similarity
-        user_movie_scores = cosine_similarity(np.array(movie_cf_embeddings), np.array(user_cf_embedding).reshape(1, -1)).squeeze()
-        user_movie_scores = pd.Series(data=user_movie_scores, index=query_match_movies)
+        # if the user has no liked movies than don't reweight the query similarity scores
+        if len(liked_movies) == 0:
+            user_movie_scores = query_movie_scores
+
+        # calculate the average cosine similarity of each query match movie wrt the user's liked movies
+        pairwise_similarities = cosine_similarity(movies_collab_embeddings.loc[liked_movies], movies_collab_embeddings.loc[query_match_movies])
+        user_movie_scores = pd.Series(pairwise_similarities.mean(axis=0), index=movies_collab_embeddings.loc[query_match_movies].index)
+        print(user_movie_scores)
 
     else:
 
